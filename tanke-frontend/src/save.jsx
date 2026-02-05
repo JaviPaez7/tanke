@@ -1,24 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { getAllGasStations } from "./services/gasStations";
-// IMPORTACIONES DEL MAPA
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
 
-// ARREGLO PARA LOS ICONOS DEL MAPA
-import icon from "leaflet/dist/images/marker-icon.png";
-import iconShadow from "leaflet/dist/images/marker-shadow.png";
-
-let DefaultIcon = L.icon({
-  iconUrl: icon,
-  shadowUrl: iconShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-});
-L.Marker.prototype.options.icon = DefaultIcon;
-
-// DATOS DE PROVINCIAS (Bien escritas)
+// DATOS DE PROVINCIAS (FIJOS PARA QUE SIEMPRE SALGAN EN EL MENÚ)
 const provinceIds = {
   Alava: "01",
   Albacete: "02",
@@ -88,89 +71,122 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// COMPONENTE PARA RECENTRAR EL MAPA AUTOMÁTICAMENTE
-function RecenterMap({ stations }) {
-  const map = useMap();
-  useEffect(() => {
-    if (stations.length > 0) {
-      const first = stations[0];
-      map.setView([first.lat, first.lng], 10);
-    }
-  }, [stations, map]);
-  return null;
-}
-
 function App() {
-  // --- ESTADOS CON MEMORIA (PERSISTENCIA) ---
-  const [selectedProvince, setSelectedProvince] = useState(() => {
-    const saved = localStorage.getItem("tanke_province");
-    return provinceIds[saved] ? saved : "Las Palmas";
-  });
-
-  const [selectedMunicipality, setSelectedMunicipality] = useState(
-    () => localStorage.getItem("tanke_municipality") || "",
-  );
-  const [sortType, setSortType] = useState(
-    () => localStorage.getItem("tanke_sort") || "gas95Asc",
-  );
-  const [tankSize, setTankSize] = useState(
-    () => Number(localStorage.getItem("tanke_liters")) || 0,
-  );
-
-  // ESTADO PARA LA VISTA (LISTA O MAPA)
-  const [viewMode, setViewMode] = useState("list");
-
   const [stations, setStations] = useState([]);
   const [allStationsInProvince, setAllStationsInProvince] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
+
+  const [selectedProvince, setSelectedProvince] = useState(() => {
+    return localStorage.getItem("tanke_province") || "Las Palmas";
+  });
+  const [selectedMunicipality, setSelectedMunicipality] = useState("");
+  const [sortType, setSortType] = useState(() => {
+    return localStorage.getItem("tanke_sort") || "gas95Asc";
+  });
   const [searchTerm, setSearchTerm] = useState("");
+  const [tankSize, setTankSize] = useState(() => {
+    return Number(localStorage.getItem("tanke_liters")) || 0;
+  });
+
   const [userLocation, setUserLocation] = useState(null);
   const [geoError, setGeoError] = useState(null);
   const [currentAverage, setCurrentAverage] = useState(0);
 
+  // 1. DEFINIMOS LA FUNCIÓN DE CARGA PRIMERO
   const loadProvinceData = async (id) => {
     setLoading(true);
     setErrorMsg("");
     try {
+      console.log("Iniciando carga de provincia ID:", id);
       const data = await getAllGasStations(id);
+
+      console.log("Datos recibidos:", data ? data.length : 0);
+
       if (!data || data.length === 0) {
-        setErrorMsg("No hay datos disponibles o falló la conexión.");
+        setErrorMsg(
+          "No se han recibido datos. Puede que la API esté bloqueada o lenta.",
+        );
         setAllStationsInProvince([]);
         setStations([]);
       } else {
-        const sortedData = [...data].sort((a, b) => a.price95 - b.price95);
+        const sortedData = [...data].sort((a, b) => {
+          if (a.price95 <= 0) return 1;
+          if (b.price95 <= 0) return -1;
+          return a.price95 - b.price95;
+        });
         setAllStationsInProvince(sortedData);
         setStations(sortedData);
       }
     } catch (err) {
-      console.error(err);
-      setErrorMsg("Error cargando datos.");
+      console.error("Error en loadProvinceData:", err);
+      setErrorMsg("Error al cargar datos: " + err.message);
     }
     setLoading(false);
   };
 
+  // 2. AHORA SÍ LLAMAMOS AL USEEFFECT (Porque la función ya existe arriba)
+  // CARGA INICIAL INTELIGENTE
   useEffect(() => {
+    // Buscamos el ID correspondiente al nombre de la provincia guardada
     const idToLoad = provinceIds[selectedProvince];
-    loadProvinceData(idToLoad || "35");
-  }, []);
+
+    if (idToLoad) {
+      loadProvinceData(idToLoad);
+    } else {
+      // Si por lo que sea falla, cargamos Las Palmas (35) por seguridad
+      loadProvinceData("35");
+    }
+  }, []); // Se ejecuta solo una vez al abrir la web
 
   const handleProvinceChange = (e) => {
     const provinceName = e.target.value;
     setSelectedProvince(provinceName);
+
     localStorage.setItem("tanke_province", provinceName);
 
     setSelectedMunicipality("");
-    localStorage.removeItem("tanke_municipality");
     setSearchTerm("");
     const id = provinceIds[provinceName];
     if (id) loadProvinceData(id);
   };
 
+  const handleNearMe = () => {
+    setLoading(true);
+    setGeoError(null);
+    if (!navigator.geolocation) {
+      setGeoError("Navegador incompatible");
+      setLoading(false);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+        setSelectedMunicipality("");
+        setSearchTerm("");
+        setLoading(false);
+      },
+      (error) => {
+        console.error(error);
+        setGeoError("Error al obtener ubicación");
+        setLoading(false);
+      },
+    );
+  };
+
+  const clearGeo = () => {
+    setUserLocation(null);
+  };
+
+  // Calculamos municipios basados en lo que haya cargado
   const municipalityList = [
     ...new Set(allStationsInProvince.map((s) => s.municipality)),
   ].sort();
 
+  // EFECTO PARA FILTRAR Y ORDENAR (Se ejecuta cuando cambias filtros)
   useEffect(() => {
     if (allStationsInProvince.length === 0) return;
     let result = [...allStationsInProvince];
@@ -193,7 +209,7 @@ function App() {
           s.lng,
         ),
       }));
-      result = result.filter((s) => s.distance < 20);
+      result = result.filter((s) => s.distance < 10);
     } else {
       if (selectedMunicipality)
         result = result.filter((s) => s.municipality === selectedMunicipality);
@@ -240,42 +256,6 @@ function App() {
     allStationsInProvince,
     searchTerm,
   ]);
-
-  const handleNearMe = () => {
-    setLoading(true);
-    setGeoError(null);
-    if (!navigator.geolocation) {
-      setGeoError("Navegador incompatible");
-      setLoading(false);
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
-        setSelectedMunicipality("");
-        localStorage.removeItem("tanke_municipality");
-        setSearchTerm("");
-        setLoading(false);
-      },
-      (error) => {
-        console.error(error);
-        setGeoError("Error GPS");
-        setLoading(false);
-      },
-    );
-  };
-
-  const getPriceForStation = (station) => {
-    if (sortType === "gas95Asc") return station.price95;
-    if (sortType === "gas98Asc") return station.price98;
-    if (sortType === "dieselAsc") return station.priceDiesel;
-    if (sortType === "glpAsc") return station.priceGLP;
-    if (sortType === "cnGAsc") return station.priceCNG;
-    return 0;
-  };
 
   const PriceTag = ({ label, price, highlight }) => {
     const isAvailable = price && price > 0;
@@ -334,7 +314,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 pb-20 selection:bg-indigo-500 selection:text-white">
-      {/* --- HERO SECTION CON FOTO DE COCHE (RECUPERADO) --- */}
       <div className="relative py-12 px-4 overflow-hidden shadow-2xl bg-slate-900 min-h-[300px] flex flex-col justify-center items-center">
         <div className="absolute inset-0 z-0">
           <img
@@ -358,39 +337,30 @@ function App() {
 
       <div className="max-w-7xl mx-auto px-4 -mt-8 relative z-20">
         <div className="bg-white rounded-3xl shadow-xl border border-white/50 mb-8 relative z-30 p-4 md:p-6">
-          {/* BARRA DE CONTROLES */}
-          <div className="flex flex-col md:flex-row gap-4 justify-between items-center mb-4">
-            <div className="flex gap-2 w-full md:w-auto">
+          <div className="flex flex-col xl:flex-row gap-6 justify-between items-center mb-6">
+            <div className="w-full md:w-auto flex justify-center">
               {!userLocation ? (
                 <button
                   onClick={handleNearMe}
-                  className="flex-1 md:flex-none px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
+                  className="w-full md:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-2xl font-black shadow-lg shadow-indigo-200 flex items-center justify-center gap-3 text-lg transition-all"
                 >
-                  📍 Cerca de mí
+                  <span>📍</span> Buscar cerca de mí
                 </button>
               ) : (
-                <div className="flex items-center gap-2 bg-green-50 px-4 py-3 rounded-xl border border-green-200 text-green-700 font-bold text-sm">
-                  <span>📡 GPS Activo</span>
+                <div className="flex items-center gap-3 bg-green-50 px-5 py-3 rounded-2xl border border-green-200 shadow-sm">
+                  <span className="text-green-800 font-bold text-sm">
+                    GPS Activo (20km)
+                  </span>
                   <button
-                    onClick={() => setUserLocation(null)}
-                    className="ml-2 w-5 h-5 bg-white rounded-full flex items-center justify-center text-xs shadow"
+                    onClick={clearGeo}
+                    className="ml-2 w-6 h-6 flex items-center justify-center rounded-full bg-white text-slate-400 hover:text-red-500 transition text-xs border"
                   >
                     ✕
                   </button>
                 </div>
               )}
-              {/* BOTÓN TOGGLE MAPA */}
-              <button
-                onClick={() =>
-                  setViewMode(viewMode === "list" ? "map" : "list")
-                }
-                className={`px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2 ${viewMode === "map" ? "bg-slate-800 text-white shadow-lg" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
-              >
-                {viewMode === "list" ? "🗺️ Ver Mapa" : "📋 Ver Lista"}
-              </button>
             </div>
-
-            <div className="w-full md:w-64">
+            <div className="w-full md:w-64 bg-slate-50 p-4 rounded-2xl border border-slate-100">
               <label className="text-[10px] font-black uppercase text-slate-400 block mb-2">
                 Simular Depósito:{" "}
                 <span
@@ -408,14 +378,13 @@ function App() {
                 step="5"
                 value={tankSize}
                 onChange={(e) => {
-                  const v = Number(e.target.value);
-                  setTankSize(v);
-                  localStorage.setItem("tanke_liters", v);
+                  const val = Number(e.target.value);
+                  setTankSize(val);
+                  localStorage.setItem("tanke_liters", val);
                 }}
                 className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
               />
             </div>
-
             <div className="w-full md:w-64 relative group">
               <input
                 type="text"
@@ -430,11 +399,10 @@ function App() {
             </div>
           </div>
 
-          {/* FILTROS COMBUSTIBLE */}
-          <div className="flex overflow-x-auto pb-2 gap-2 mb-4 scrollbar-hide">
+          <div className="flex flex-wrap justify-center gap-2 mb-6 bg-slate-50 p-1.5 rounded-2xl">
             {[
-              { id: "gas95Asc", label: "Gasolina 95" },
-              { id: "gas98Asc", label: "98" },
+              { id: "gas95Asc", label: "G95" },
+              { id: "gas98Asc", label: "G98" },
               { id: "dieselAsc", label: "Diésel" },
               { id: "glpAsc", label: "GLP" },
               { id: "cnGAsc", label: "GNC" },
@@ -445,44 +413,48 @@ function App() {
                   setSortType(btn.id);
                   localStorage.setItem("tanke_sort", btn.id);
                 }}
-                className={`whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold transition-all ${sortType === btn.id ? "bg-indigo-50 text-indigo-700 border border-indigo-200" : "bg-slate-50 text-slate-500 border border-slate-100"}`}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${sortType === btn.id ? "bg-white text-indigo-600 shadow-sm ring-1 ring-black/5" : "text-slate-500 hover:text-slate-700"}`}
               >
                 {btn.label}
               </button>
             ))}
           </div>
 
-          {/* SELECTORES DE ZONA */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <select
-              className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500"
-              value={selectedProvince}
-              onChange={handleProvinceChange}
-            >
-              {Object.keys(provinceIds)
-                .sort()
-                .map((p) => (
-                  <option key={p} value={p}>
-                    {p}
+          <div
+            className={`grid grid-cols-1 md:grid-cols-2 gap-4 transition-all duration-500 ${userLocation || searchTerm ? "opacity-40 pointer-events-none grayscale" : "opacity-100"}`}
+          >
+            <div className="relative">
+              <select
+                className="w-full p-4 pl-12 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 appearance-none cursor-pointer"
+                value={selectedProvince}
+                onChange={handleProvinceChange}
+              >
+                {Object.keys(provinceIds)
+                  .sort()
+                  .map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+              </select>
+              <span className="absolute left-4 top-4 text-slate-400">🗺️</span>
+            </div>
+            <div className="relative">
+              <select
+                className="w-full p-4 pl-12 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 appearance-none cursor-pointer"
+                value={selectedMunicipality}
+                disabled={!selectedProvince}
+                onChange={(e) => setSelectedMunicipality(e.target.value)}
+              >
+                <option value="">Municipio</option>
+                {municipalityList.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
                   </option>
                 ))}
-            </select>
-            <select
-              className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500"
-              value={selectedMunicipality}
-              disabled={!selectedProvince}
-              onChange={(e) => {
-                setSelectedMunicipality(e.target.value);
-                localStorage.setItem("tanke_municipality", e.target.value);
-              }}
-            >
-              <option value="">Todos los municipios</option>
-              {municipalityList.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
+              </select>
+              <span className="absolute left-4 top-4 text-slate-400">🏙️</span>
+            </div>
           </div>
         </div>
 
@@ -496,20 +468,28 @@ function App() {
           </div>
         )}
 
-        {/* CONTENIDO (MAPA O LISTA) */}
         {loading ? (
-          <div className="text-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-            <p className="text-slate-400 font-medium">
-              Buscando mejores precios...
+          <div className="text-center py-24">
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-indigo-600 mx-auto mb-4"></div>
+            <p className="text-slate-400 font-medium animate-pulse">
+              Cargando datos...
             </p>
           </div>
-        ) : viewMode === "list" ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
             {stations.slice(0, 50).map((station) => {
-              const price = getPriceForStation(station);
-              const total = price * tankSize;
-              const savings = (currentAverage - price) * tankSize;
+              const getPriceValue = () => {
+                if (sortType === "gas95Asc") return station.price95;
+                if (sortType === "gas98Asc") return station.price98;
+                if (sortType === "dieselAsc") return station.priceDiesel;
+                if (sortType === "glpAsc") return station.priceGLP;
+                if (sortType === "cnGAsc") return station.priceCNG;
+                return 0;
+              };
+              const currentPrice = getPriceValue();
+              const totalCost = currentPrice * tankSize;
+              const savings = (currentAverage - currentPrice) * tankSize;
+
               return (
                 <div
                   key={station.id}
@@ -539,7 +519,7 @@ function App() {
                             Total {tankSize}L
                           </p>
                           <p className="text-2xl font-black">
-                            {total > 0 ? total.toFixed(2) : "--"}€
+                            {totalCost > 0 ? totalCost.toFixed(2) : "--"}€
                           </p>
                         </div>
                         {savings > 0 && (
@@ -557,21 +537,34 @@ function App() {
                   )}
                   <div className="grid grid-cols-2 gap-2 mb-6">
                     <PriceTag
-                      label="G95"
+                      label="Gasolina 95"
                       price={station.price95}
                       highlight={sortType === "gas95Asc"}
                     />
                     <PriceTag
-                      label="Diésel"
+                      label="Diésel A"
                       price={station.priceDiesel}
                       highlight={sortType === "dieselAsc"}
                     />
                     <PriceTag
-                      label="G98"
+                      label="Gasolina 98"
                       price={station.price98}
                       highlight={sortType === "gas98Asc"}
                     />
-                    <PriceTag label="Diésel+" price={station.priceDieselPlus} />
+                    <PriceTag
+                      label="Diésel +"
+                      price={station.priceDieselPlus}
+                    />
+                    <PriceTag
+                      label="GLP"
+                      price={station.priceGLP}
+                      highlight={sortType === "glpAsc"}
+                    />
+                    <PriceTag
+                      label="GNC"
+                      price={station.priceCNG}
+                      highlight={sortType === "cnGAsc"}
+                    />
                   </div>
                   <a
                     href={`https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`}
@@ -584,46 +577,6 @@ function App() {
                 </div>
               );
             })}
-          </div>
-        ) : (
-          <div className="h-[600px] w-full rounded-3xl overflow-hidden shadow-xl border border-slate-200 z-0">
-            <MapContainer
-              center={[40.416, -3.703]}
-              zoom={6}
-              scrollWheelZoom={true}
-              className="h-full w-full"
-            >
-              <TileLayer
-                attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-              />
-              <RecenterMap stations={stations} />
-              {stations.slice(0, 100).map((station) => (
-                <Marker key={station.id} position={[station.lat, station.lng]}>
-                  <Popup>
-                    <div className="text-center">
-                      <h3 className="font-bold text-slate-800">
-                        {station.name}
-                      </h3>
-                      <p className="text-xs text-slate-500">
-                        {station.address}
-                      </p>
-                      <div className="mt-2 bg-indigo-600 text-white font-black py-1 px-2 rounded-lg text-lg">
-                        {getPriceForStation(station).toFixed(3)} €
-                      </div>
-                      <a
-                        href={`https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block mt-2 text-indigo-600 font-bold text-xs underline"
-                      >
-                        Cómo llegar
-                      </a>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
-            </MapContainer>
           </div>
         )}
       </div>
