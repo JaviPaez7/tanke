@@ -48,7 +48,7 @@ const provinceIds = {
   Tarragona: "43",
   Teruel: "44",
   Toledo: "45",
-  "Valencia / Valencia": "46",
+  "Valencia": "46",
   Valladolid: "47",
   Vizcaya: "48",
   Zamora: "49",
@@ -379,8 +379,8 @@ function App() {
 
           <div className="flex flex-wrap justify-center gap-2 mb-6 bg-slate-50 p-1.5 rounded-2xl">
             {[
-              { id: "gas95Asc", label: "Gasolina 95" },
-              { id: "gas98Asc", label: "98" },
+              { id: "gas95Asc", label: "G95" },
+              { id: "gas98Asc", label: "G98" },
               { id: "dieselAsc", label: "Diésel" },
               { id: "glpAsc", label: "GLP" },
               { id: "cnGAsc", label: "GNC" },
