@@ -1,16 +1,19 @@
 import axios from "axios";
 
+// AHORA APUNTAMOS A TU SERVIDOR BACKEND (Puerto 3000)
+// Cuando lo subas a internet, cambiaremos esta URL por la de producción.
+const API_URL = "http://localhost:3000/api/gas";
+
 export const getAllGasStations = async (provinceId = "35") => {
   try {
-    // Petición limpia: /api/gas/35
-    // Esto funcionará automáticamente en Local (gracias a Vite) y en Vercel (gracias a la API)
-    const response = await axios.get(`/api/gas/${provinceId}`);
+    // Llamada directa a tu backend
+    const response = await axios.get(`${API_URL}/${provinceId}`);
 
-    // Si la API devuelve el objeto directamente o dentro de ListaEESSPrecio, lo gestionamos
+    // Si la API devuelve el objeto directamente o dentro de ListaEESSPrecio
     const rawData = response.data.ListaEESSPrecio || response.data;
 
     if (!Array.isArray(rawData)) {
-      console.warn("Formato de datos inesperado:", rawData);
+      // A veces el gobierno devuelve un objeto vacío si falla
       return [];
     }
 
