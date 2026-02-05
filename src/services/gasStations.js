@@ -1,33 +1,16 @@
 import axios from "axios";
 
-// 1. URL DEL PROXY (Estable y rápido)
-const PROXY_URL = "https://corsproxy.io/?";
-
-// 2. URL DEL GOBIERNO CORREGIDA (¡Aquí estaba el error!)
-// Antes faltaba "/PreciosCarburantes" y sobraba ".svc"
-const GOV_URL =
-  "https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres";
-
-export const getAllGasStations = async (provinceId) => {
+export const getAllGasStations = async (provinceId = "35") => {
   try {
-    let targetUrl = `${GOV_URL}/FiltroProvincia/35`; // Por defecto Las Palmas
+    // Petición limpia: /api/gas/35
+    // Esto funcionará automáticamente en Local (gracias a Vite) y en Vercel (gracias a la API)
+    const response = await axios.get(`/api/gas/${provinceId}`);
 
-    if (provinceId && provinceId !== "all") {
-      targetUrl = `${GOV_URL}/FiltroProvincia/${provinceId}`;
-    }
+    // Si la API devuelve el objeto directamente o dentro de ListaEESSPrecio, lo gestionamos
+    const rawData = response.data.ListaEESSPrecio || response.data;
 
-    // Concatenamos DIRECTAMENTE. corsproxy lo maneja mejor así.
-    const finalUrl = `${PROXY_URL}${targetUrl}`;
-
-    console.log("Intentando conectar a:", finalUrl);
-
-    const response = await axios.get(finalUrl);
-
-    // A veces la API devuelve todo en "ListaEESSPrecio"
-    const rawData = response.data.ListaEESSPrecio;
-
-    if (!rawData) {
-      console.warn("Recibida respuesta vacía o formato incorrecto");
+    if (!Array.isArray(rawData)) {
+      console.warn("Formato de datos inesperado:", rawData);
       return [];
     }
 
@@ -40,7 +23,6 @@ export const getAllGasStations = async (provinceId) => {
         province: station["Provincia"] || "",
         schedule: station["Horario"] || "Sin horario",
 
-        // Limpieza y conversión de precios (coma por punto)
         priceDiesel: parseFloat(
           station["Precio Gasoleo A"]?.replace(",", ".") || 0,
         ),
@@ -63,14 +45,7 @@ export const getAllGasStations = async (provinceId) => {
         lat: parseFloat(station["Latitud"]?.replace(",", ".") || 0),
         lng: parseFloat(station["Longitud (WGS84)"]?.replace(",", ".") || 0),
       }))
-      .filter(
-        (s) =>
-          // Solo mostramos si tienen algún precio válido
-          s.price95 > 0 ||
-          s.priceDiesel > 0 ||
-          s.priceGLP > 0 ||
-          s.priceCNG > 0,
-      );
+      .filter((s) => s.price95 > 0 || s.priceDiesel > 0);
   } catch (error) {
     console.error("Error cargando gasolineras:", error);
     return [];
