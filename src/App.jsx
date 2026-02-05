@@ -1,6 +1,62 @@
 import React, { useEffect, useState } from "react";
 import { getAllGasStations } from "./services/gasStations";
 
+// DATOS DE PROVINCIAS (FIJOS PARA QUE SIEMPRE SALGAN EN EL MENÚ)
+const provinceIds = {
+  Alava: "01",
+  Albacete: "02",
+  Alicante: "03",
+  Almeria: "04",
+  Avila: "05",
+  Badajoz: "06",
+  "Islas Baleares": "07",
+  Barcelona: "08",
+  Burgos: "09",
+  Caceres: "10",
+  Cadiz: "11",
+  Castellon: "12",
+  "Ciudad Real": "13",
+  Cordoba: "14",
+  "Coruña (A)": "15",
+  Cuenca: "16",
+  Girona: "17",
+  Granada: "18",
+  Guadalajara: "19",
+  Guipuzcoa: "20",
+  Huelva: "21",
+  Huesca: "22",
+  Jaen: "23",
+  Leon: "24",
+  Lleida: "25",
+  "Rioja (La)": "26",
+  Lugo: "27",
+  Madrid: "28",
+  Malaga: "29",
+  Murcia: "30",
+  Navarra: "31",
+  Ourense: "32",
+  Asturias: "33",
+  Palencia: "34",
+  "Las Palmas": "35",
+  Pontevedra: "36",
+  Salamanca: "37",
+  "Santa Cruz de Tenerife": "38",
+  Cantabria: "39",
+  Segovia: "40",
+  Sevilla: "41",
+  Soria: "42",
+  Tarragona: "43",
+  Teruel: "44",
+  Toledo: "45",
+  "Valencia / Valencia": "46",
+  Valladolid: "47",
+  Vizcaya: "48",
+  Zamora: "49",
+  Zaragoza: "50",
+  Ceuta: "51",
+  Melilla: "52",
+};
+
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371;
   const dLat = (lat2 - lat1) * (Math.PI / 180);
@@ -16,35 +72,66 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 
 function App() {
-  const [allStations, setAllStations] = useState([]);
   const [stations, setStations] = useState([]);
+  const [allStationsInProvince, setAllStationsInProvince] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const [selectedProvince, setSelectedProvince] = useState("PALMAS (LAS)");
   const [selectedMunicipality, setSelectedMunicipality] = useState("");
   const [sortType, setSortType] = useState("gas95Asc");
   const [searchTerm, setSearchTerm] = useState("");
-
-  // --- CALCULADORA INICIA EN 0 ---
   const [tankSize, setTankSize] = useState(0);
 
   const [userLocation, setUserLocation] = useState(null);
   const [geoError, setGeoError] = useState(null);
   const [currentAverage, setCurrentAverage] = useState(0);
 
+  // 1. DEFINIMOS LA FUNCIÓN DE CARGA PRIMERO (Para evitar el error de React)
+  const loadProvinceData = async (id) => {
+    setLoading(true);
+    setErrorMsg("");
+    try {
+      console.log("Iniciando carga de provincia ID:", id);
+      const data = await getAllGasStations(id);
+
+      console.log("Datos recibidos:", data ? data.length : 0);
+
+      if (!data || data.length === 0) {
+        setErrorMsg(
+          "No se han recibido datos. Puede que la API esté bloqueada o lenta.",
+        );
+        setAllStationsInProvince([]);
+        setStations([]);
+      } else {
+        const sortedData = [...data].sort((a, b) => {
+          if (a.price95 <= 0) return 1;
+          if (b.price95 <= 0) return -1;
+          return a.price95 - b.price95;
+        });
+        setAllStationsInProvince(sortedData);
+        setStations(sortedData);
+      }
+    } catch (err) {
+      console.error("Error en loadProvinceData:", err);
+      setErrorMsg("Error al cargar datos: " + err.message);
+    }
+    setLoading(false);
+  };
+
+  // 2. AHORA SÍ LLAMAMOS AL USEEFFECT (Porque la función ya existe arriba)
   useEffect(() => {
-    const loadData = async () => {
-      const data = await getAllGasStations();
-      const sortedData = [...data].sort((a, b) => {
-        if (a.price95 <= 0) return 1;
-        if (b.price95 <= 0) return -1;
-        return a.price95 - b.price95;
-      });
-      setAllStations(sortedData);
-      setLoading(false);
-    };
-    loadData();
+    loadProvinceData("35"); // Carga Las Palmas al iniciar
   }, []);
+
+  const handleProvinceChange = (e) => {
+    const provinceName = e.target.value;
+    setSelectedProvince(provinceName);
+    setSelectedMunicipality("");
+    setSearchTerm("");
+    const id = provinceIds[provinceName];
+    if (id) loadProvinceData(id);
+  };
 
   const handleNearMe = () => {
     setLoading(true);
@@ -60,7 +147,6 @@ function App() {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         });
-        setSelectedProvince("");
         setSelectedMunicipality("");
         setSearchTerm("");
         setLoading(false);
@@ -75,21 +161,17 @@ function App() {
 
   const clearGeo = () => {
     setUserLocation(null);
-    setSelectedProvince("PALMAS (LAS)");
   };
 
-  const provinceList = [...new Set(allStations.map((s) => s.province))].sort();
+  // Calculamos municipios basados en lo que haya cargado
   const municipalityList = [
-    ...new Set(
-      allStations
-        .filter((s) => s.province === selectedProvince)
-        .map((s) => s.municipality),
-    ),
+    ...new Set(allStationsInProvince.map((s) => s.municipality)),
   ].sort();
 
+  // EFECTO PARA FILTRAR Y ORDENAR (Se ejecuta cuando cambias filtros)
   useEffect(() => {
-    if (allStations.length === 0) return;
-    let result = [...allStations];
+    if (allStationsInProvince.length === 0) return;
+    let result = [...allStationsInProvince];
 
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
@@ -111,8 +193,6 @@ function App() {
       }));
       result = result.filter((s) => s.distance < 20);
     } else {
-      if (selectedProvince)
-        result = result.filter((s) => s.province === selectedProvince);
       if (selectedMunicipality)
         result = result.filter((s) => s.municipality === selectedMunicipality);
     }
@@ -152,11 +232,10 @@ function App() {
     setCurrentAverage(avg);
     setStations(result);
   }, [
-    selectedProvince,
     selectedMunicipality,
     sortType,
     userLocation,
-    allStations,
+    allStationsInProvince,
     searchTerm,
   ]);
 
@@ -217,7 +296,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 pb-20 selection:bg-indigo-500 selection:text-white">
-      {/* HERO */}
       <div className="relative py-12 px-4 overflow-hidden shadow-2xl bg-slate-900 min-h-[300px] flex flex-col justify-center items-center">
         <div className="absolute inset-0 z-0">
           <img
@@ -233,7 +311,7 @@ function App() {
           </h1>
           <p className="text-slate-300 text-sm md:text-base font-medium max-w-lg mx-auto drop-shadow-md">
             Tu buscador de ahorro en{" "}
-            <span className="text-white font-bold">Canarias</span> y
+            <span className="text-white font-bold">Canarias 🇮🇨</span> y
             península.
           </p>
         </div>
@@ -252,7 +330,6 @@ function App() {
                 </button>
               ) : (
                 <div className="flex items-center gap-3 bg-green-50 px-5 py-3 rounded-2xl border border-green-200 shadow-sm">
-                  <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></div>
                   <span className="text-green-800 font-bold text-sm">
                     GPS Activo (20km)
                   </span>
@@ -265,8 +342,6 @@ function App() {
                 </div>
               )}
             </div>
-
-            {/* CALCULADORA (EMPIEZA EN 0) */}
             <div className="w-full md:w-64 bg-slate-50 p-4 rounded-2xl border border-slate-100">
               <label className="text-[10px] font-black uppercase text-slate-400 block mb-2">
                 Simular Depósito:{" "}
@@ -287,11 +362,7 @@ function App() {
                 onChange={(e) => setTankSize(Number(e.target.value))}
                 className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
               />
-              <p className="text-[9px] text-center text-slate-400 mt-1">
-                Desliza para calcular el ahorro total
-              </p>
             </div>
-
             <div className="w-full md:w-64 relative group">
               <input
                 type="text"
@@ -331,13 +402,9 @@ function App() {
               <select
                 className="w-full p-4 pl-12 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 appearance-none cursor-pointer"
                 value={selectedProvince}
-                onChange={(e) => {
-                  setSelectedProvince(e.target.value);
-                  setSelectedMunicipality("");
-                }}
+                onChange={handleProvinceChange}
               >
-                <option value="">🇪🇸 Todo España</option>
-                {provinceList.map((p) => (
+                {Object.keys(provinceIds).sort().map((p) => (
                   <option key={p} value={p}>
                     {p}
                   </option>
@@ -364,11 +431,21 @@ function App() {
           </div>
         </div>
 
+        {errorMsg && (
+          <div
+            className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
+            role="alert"
+          >
+            <strong className="font-bold">Error: </strong>
+            <span className="block sm:inline">{errorMsg}</span>
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center py-24">
             <div className="animate-spin rounded-full h-10 w-10 border-4 border-indigo-600 mx-auto mb-4"></div>
             <p className="text-slate-400 font-medium animate-pulse">
-              Cargando...
+              Cargando datos...
             </p>
           </div>
         ) : (
@@ -407,8 +484,6 @@ function App() {
                       {station.municipality}
                     </span>
                   </div>
-
-                  {/* TICKET DE AHORRO CONDICIONAL */}
                   {tankSize > 0 && (
                     <div className="bg-slate-900 rounded-2xl p-4 mb-4 text-white animate-in fade-in zoom-in duration-300">
                       <div className="flex justify-between items-end">
@@ -433,7 +508,6 @@ function App() {
                       </div>
                     </div>
                   )}
-
                   <div className="grid grid-cols-2 gap-2 mb-6">
                     <PriceTag
                       label="Gasolina 95"
@@ -465,7 +539,6 @@ function App() {
                       highlight={sortType === "cnGAsc"}
                     />
                   </div>
-
                   <a
                     href={`https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`}
                     target="_blank"
