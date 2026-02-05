@@ -48,7 +48,7 @@ const provinceIds = {
   Tarragona: "43",
   Teruel: "44",
   Toledo: "45",
-  "Valencia": "46",
+  Valencia: "46",
   Valladolid: "47",
   Vizcaya: "48",
   Zamora: "49",
@@ -77,17 +77,23 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
 
-  const [selectedProvince, setSelectedProvince] = useState("PALMAS (LAS)");
+  const [selectedProvince, setSelectedProvince] = useState(() => {
+    return localStorage.getItem("tanke_province") || "Las Palmas";
+  });
   const [selectedMunicipality, setSelectedMunicipality] = useState("");
-  const [sortType, setSortType] = useState("gas95Asc");
+  const [sortType, setSortType] = useState(() => {
+    return localStorage.getItem("tanke_sort") || "gas95Asc";
+  });
   const [searchTerm, setSearchTerm] = useState("");
-  const [tankSize, setTankSize] = useState(0);
+  const [tankSize, setTankSize] = useState(() => {
+    return Number(localStorage.getItem("tanke_liters")) || 0;
+  });
 
   const [userLocation, setUserLocation] = useState(null);
   const [geoError, setGeoError] = useState(null);
   const [currentAverage, setCurrentAverage] = useState(0);
 
-  // 1. DEFINIMOS LA FUNCIÓN DE CARGA PRIMERO (Para evitar el error de React)
+  // 1. DEFINIMOS LA FUNCIÓN DE CARGA PRIMERO
   const loadProvinceData = async (id) => {
     setLoading(true);
     setErrorMsg("");
@@ -120,13 +126,25 @@ function App() {
   };
 
   // 2. AHORA SÍ LLAMAMOS AL USEEFFECT (Porque la función ya existe arriba)
+  // CARGA INICIAL INTELIGENTE
   useEffect(() => {
-    loadProvinceData("35"); // Carga Las Palmas al iniciar
-  }, []);
+    // Buscamos el ID correspondiente al nombre de la provincia guardada
+    const idToLoad = provinceIds[selectedProvince];
+
+    if (idToLoad) {
+      loadProvinceData(idToLoad);
+    } else {
+      // Si por lo que sea falla, cargamos Las Palmas (35) por seguridad
+      loadProvinceData("35");
+    }
+  }, []); // Se ejecuta solo una vez al abrir la web
 
   const handleProvinceChange = (e) => {
     const provinceName = e.target.value;
     setSelectedProvince(provinceName);
+
+    localStorage.setItem("tanke_province", provinceName);
+
     setSelectedMunicipality("");
     setSearchTerm("");
     const id = provinceIds[provinceName];
@@ -191,7 +209,7 @@ function App() {
           s.lng,
         ),
       }));
-      result = result.filter((s) => s.distance < 20);
+      result = result.filter((s) => s.distance < 10);
     } else {
       if (selectedMunicipality)
         result = result.filter((s) => s.municipality === selectedMunicipality);
@@ -359,7 +377,11 @@ function App() {
                 max="100"
                 step="5"
                 value={tankSize}
-                onChange={(e) => setTankSize(Number(e.target.value))}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setTankSize(val);
+                  localStorage.setItem("tanke_liters", val);
+                }}
                 className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
               />
             </div>
@@ -387,7 +409,10 @@ function App() {
             ].map((btn) => (
               <button
                 key={btn.id}
-                onClick={() => setSortType(btn.id)}
+                onClick={() => {
+                  setSortType(btn.id);
+                  localStorage.setItem("tanke_sort", btn.id);
+                }}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${sortType === btn.id ? "bg-white text-indigo-600 shadow-sm ring-1 ring-black/5" : "text-slate-500 hover:text-slate-700"}`}
               >
                 {btn.label}
@@ -404,11 +429,13 @@ function App() {
                 value={selectedProvince}
                 onChange={handleProvinceChange}
               >
-                {Object.keys(provinceIds).sort().map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
+                {Object.keys(provinceIds)
+                  .sort()
+                  .map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
               </select>
               <span className="absolute left-4 top-4 text-slate-400">🗺️</span>
             </div>
