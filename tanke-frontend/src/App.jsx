@@ -335,14 +335,14 @@ function App() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 pb-20 selection:bg-indigo-500 selection:text-white">
       {/* --- HERO SECTION CON FOTO DE COCHE (RECUPERADO) --- */}
-      <div className="relative py-12 px-4 overflow-hidden shadow-2xl bg-slate-900 min-h-[300px] flex flex-col justify-center items-center">
+      <div className="relative py-12 px-4 overflow-hidden shadow-2xl bg-slate-900 min-h-75 flex flex-col justify-center items-center">
         <div className="absolute inset-0 z-0">
           <img
             src="https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?q=80&w=2670&auto=format&fit=crop"
             alt="Hero"
             className="w-full h-full object-cover opacity-80"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/90 via-slate-900/50 to-slate-900/90"></div>
+          <div className="absolute inset-0 bg-linear-to-b from-slate-900/90 via-slate-900/50 to-slate-900/90"></div>
         </div>
         <div className="max-w-7xl mx-auto text-center relative z-10">
           <h1 className="text-5xl md:text-7xl font-black mb-2 tracking-tighter text-white drop-shadow-2xl">
@@ -513,7 +513,7 @@ function App() {
               return (
                 <div
                   key={station.id}
-                  className="h-full flex flex-col bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 hover:shadow-xl transition-all duration-300 group relative"
+                  className="h-full flex flex-col bg-white rounded-4xl p-6 shadow-sm border border-slate-100 hover:shadow-xl transition-all duration-300 group relative"
                 >
                   <div className="mb-4">
                     {station.distance && (
@@ -586,7 +586,7 @@ function App() {
             })}
           </div>
         ) : (
-          <div className="h-[600px] w-full rounded-3xl overflow-hidden shadow-xl border border-slate-200 z-0">
+          <div className="h-150 w-full rounded-3xl overflow-hidden shadow-xl border border-slate-200 z-0">
             <MapContainer
               center={[40.416, -3.703]}
               zoom={6}
