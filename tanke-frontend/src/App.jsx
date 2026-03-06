@@ -2,9 +2,10 @@ import React, { useEffect, useState } from "react";
 import { getAllGasStations } from "./services/gasStations";
 
 // IMPORTACIONES DEL MAPA
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+
 
 // ARREGLO PARA LOS ICONOS DEL MAPA
 import icon from "leaflet/dist/images/marker-icon.png";
@@ -88,6 +89,30 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
+
+const createPriceIcon = (price, avg, isSelectedFuel) => {
+  let colorClass = "bg-slate-600"; // Color por defecto
+
+  if (price > 0 && avg > 0) {
+    if (price < avg - 0.01) colorClass = "bg-green-600"; // Barato
+    else if (price > avg + 0.01) colorClass = "bg-red-600"; // Caro
+    else colorClass = "bg-orange-500"; // Media
+  }
+
+  return L.divIcon({
+    className: "custom-price-marker",
+    html: `
+      <div class="flex flex-col items-center">
+        <div class="${colorClass} text-white text-[10px] font-black px-1.5 py-0.5 rounded-lg shadow-lg border-2 border-white flex items-center justify-center whitespace-nowrap transition-transform hover:scale-110">
+          ${price > 0 ? price.toFixed(3) : "--"}€
+        </div>
+        <div class="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[6px] border-t-${colorClass.split('-')[1]}-600"></div>
+      </div>
+    `,
+    iconSize: [40, 25],
+    iconAnchor: [20, 25],
+  });
+};
 
 // COMPONENTE PARA RECENTRAR EL MAPA AUTOMÁTICAMENTE
 function RecenterMap({ stations }) {
@@ -676,7 +701,7 @@ function App() {
         ) : (
           <div className="h-150 w-full rounded-3xl overflow-hidden shadow-xl border border-slate-200 z-0 relative">
             <MapContainer
-              center={[40.416, -3.703]}
+              center={[40.416, -3.703]} // Centro por defecto (Madrid)
               zoom={6}
               scrollWheelZoom={true}
               className="h-full w-full"
@@ -685,32 +710,70 @@ function App() {
                 attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                 url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
               />
+              
               <RecenterMap stations={stations} />
-              {stations.slice(0, 100).map((station) => (
-                <Marker key={station.id} position={[station.lat, station.lng]}>
-                  <Popup>
-                    <div className="text-center">
-                      <h3 className="font-bold text-slate-800">
-                        {station.name}
-                      </h3>
-                      <p className="text-xs text-slate-500">
-                        {station.address}
-                      </p>
-                      <div className="mt-2 bg-indigo-600 text-white font-black py-1 px-2 rounded-lg text-lg">
-                        {getPriceForStation(station).toFixed(3)} €
+
+              {/* 🟢 NUEVO: DIBUJAR EL RADIO Y LA UBICACIÓN DEL USUARIO */}
+              {userLocation && (
+                <>
+                  {/* El círculo que marca el radio máximo */}
+                  <Circle
+                    center={[userLocation.lat, userLocation.lng]}
+                    radius={searchRadius * 1000} // Convertimos km a metros
+                    pathOptions={{
+                      color: "#4f46e5", // Borde azul indigo-600
+                      fillColor: "#4f46e5", // Relleno azul
+                      fillOpacity: 0.1, // Muy transparente para que se vea el mapa
+                      weight: 2, // Grosor del borde
+                      dashArray: "8, 8", // Borde punteado estilo radar
+                    }}
+                  />
+                  {/* Marcador especial para decir "Estás aquí" */}
+                  <Marker position={[userLocation.lat, userLocation.lng]}>
+                    <Popup>
+                      <div className="text-center font-bold text-indigo-600">
+                        📍 Estás aquí
+                        <br />
+                        <span className="text-xs text-slate-500 font-normal">
+                          Radio: {searchRadius} km
+                        </span>
                       </div>
-                      <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${station.lat},${station.lng}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block mt-2 text-indigo-600 font-bold text-xs underline"
-                      >
-                        Cómo llegar
-                      </a>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
+                    </Popup>
+                  </Marker>
+                </>
+              )}
+
+              {/* Marcadores de las gasolineras (como los tenías) */}
+              {stations.slice(0, 100).map((station) => {
+  const stationPrice = getPriceForStation(station); // Obtenemos el precio del combustible actual
+  
+  return (
+    <Marker 
+      key={station.id} 
+      position={[station.lat, station.lng]}
+      icon={createPriceIcon(stationPrice, currentAverage)} // 👈 AQUÍ ESTÁ EL TRUCO
+    >
+      <Popup>
+        {/* El contenido del Popup se queda igual que lo tenías */}
+        <div className="text-center">
+          <h3 className="font-bold text-slate-800">{station.name}</h3>
+          <p className="text-xs text-slate-500">{station.address}</p>
+          <div className="mt-2 bg-indigo-600 text-white font-black py-1 px-2 rounded-lg text-lg">
+            {stationPrice.toFixed(3)} €
+          </div>
+          <a
+            href={`https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`}
+            target="_blank"
+            rel="noreferrer"
+            className="block mt-2 text-indigo-600 font-bold text-xs underline"
+          >
+            Cómo llegar
+          </a>
+        </div>
+      </Popup>
+    </Marker>
+  );
+})}
             </MapContainer>
           </div>
         )}
