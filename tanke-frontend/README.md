@@ -1,16 +1,42 @@
-# React + Vite
+# Tanke. ⛽
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+🚀 **Ver en vivo:** [https://tanke-seven.vercel.app/](https://tanke-seven.vercel.app/)
 
-Currently, two official plugins are available:
+Tanke es una plataforma Full-Stack diseñada para encontrar las gasolineras más económicas en España, optimizando el ahorro según el tipo de combustible y la capacidad del depósito del usuario.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🚀 Despliegue
+- **Frontend:** https://vercel.com/docs/cli/dev
+- **Backend:** https://www.d5render.com/
 
-## React Compiler
+## 🛠️ Reto Técnico: Superando el bloqueo 403
+Uno de los mayores desafíos de este proyecto fue el acceso a los datos de la sede electrónica del Ministerio. Debido a las restricciones de CORS y el bloqueo de agentes no identificados, se desarrolló una **arquitectura de microservicios**:
+- Se construyó un **Backend intermedio** en Node.js para realizar las peticiones del lado del servidor.
+- Se implementó la rotación de encabezados para emular un navegador real, garantizando el flujo constante de datos hacia el cliente.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 💻 Tecnologías utilizadas
+### Frontend
+- React.js
+- Tailwind CSS
+- Leaflet.js (Mapas interactivos)
+- Axios
 
-## Expanding the ESLint configuration
+### Backend
+- Node.js
+- Express
+- CORS & Axios
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 📦 Instalación y Uso Local
+
+1. Clonar el repositorio: `git clone [URL-DE-TU-REPO]`
+2. **Backend:**
+   - `cd backend`
+   - `npm install`
+   - `node index.js`
+3. **Frontend:**
+   - `cd frontend`
+   - `npm install`
+   - `npm run dev`
+
+## 👤 Contacto
+Desarrollado por Javi Páez.
+- **LinkedIn:** [https://www.linkedin.com/in/javi-paez-42b5a8368/](https://www.linkedin.com/in/javi-paez-42b5a8368/)
