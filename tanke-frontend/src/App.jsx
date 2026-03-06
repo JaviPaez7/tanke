@@ -90,7 +90,25 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-const createPriceIcon = (price, avg, isCheapest) => {
+const brandLogos = {
+  repsol: "/repsol.jpg",
+  cepsa: "/moeve.png",
+  moeve: "/moeve.png",
+  pcan: "/pcan.jpg",
+  shell: "/shell.png",
+  bp: "/bp.png",
+  disa: "/disa.jpg",
+  tgas: "/tgas.jpg",
+  galp: "galp.png",
+  h2exagon: "/h2.png",
+  plenergy: "/plenergy.png",
+  plenoil: "/plenergy.png",
+  petroprix: "/petroprix.jpg",
+  canary: "/canaryoil.webp",
+  spl: "/spl.png",
+};
+
+const createPriceIcon = (price, avg, isCheapest, stationName) => {
   let colorClass = "bg-slate-600"; 
   if (price > 0 && avg > 0) {
     if (price < avg - 0.01) colorClass = "bg-green-600";
@@ -98,17 +116,29 @@ const createPriceIcon = (price, avg, isCheapest) => {
     else colorClass = "bg-orange-500";
   }
 
-  // Si es la más barata, sobreescribimos el color a un dorado potente
+  // Si es la más barata, dorado y animación
   if (isCheapest) colorClass = "bg-yellow-500 border-yellow-300 marker-cheapest";
+
+  const nameLower = stationName.toLowerCase();
+  const brandKey = Object.keys(brandLogos).find(key => nameLower.includes(key));
+  const logoUrl = brandKey ? brandLogos[brandKey] : null;
 
   return L.divIcon({
     className: "custom-price-marker",
     html: `
-      <div class="flex flex-col items-center">
-        ${isCheapest ? '<span class="text-sm mb-[-5px] drop-shadow-md">👑</span>' : ''}
+      <div class="flex flex-col items-center relative">
+        ${isCheapest ? '<span class="text-sm mb-[-5px] drop-shadow-md z-30">👑</span>' : ''}
+        
+        ${logoUrl ? `
+          <div class="absolute -top-2 -left-2 w-4 h-4 rounded-full bg-white shadow-md border-2 border-white z-20 flex items-center justify-center p-0.5 overflow-hidden">
+            <img src="${logoUrl}" class="w-full h-full object-contain" />
+          </div>
+        ` : ''}
+
         <div class="${colorClass} text-white text-[10px] font-black px-1.5 py-0.5 rounded-lg shadow-lg border-2 border-white flex items-center justify-center whitespace-nowrap transition-transform">
           ${price > 0 ? price.toFixed(3) : "--"}€
         </div>
+
         <div class="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[6px] border-t-${isCheapest ? 'yellow-500' : colorClass.split('-')[1] + '-600'}"></div>
       </div>
     `,
@@ -116,7 +146,6 @@ const createPriceIcon = (price, avg, isCheapest) => {
     iconAnchor: [22, 35],
   });
 };
-
 // COMPONENTE PARA RECENTRAR EL MAPA AUTOMÁTICAMENTE
 function RecenterMap({ stations }) {
   const map = useMap();
@@ -765,7 +794,8 @@ function App() {
         <Marker
           key={station.id}
           position={[station.lat, station.lng]}
-          icon={createPriceIcon(stationPrice, currentAverage, isCheapest)}
+          icon={createPriceIcon(stationPrice, currentAverage, isCheapest, station.name)}
+          zIndexOffset={isCheapest ? 1000 : 0}
         >
           <Popup>
             <div className="text-center">

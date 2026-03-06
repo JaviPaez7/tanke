@@ -4,9 +4,10 @@
   0% { shadow: 0 0 0 0 rgba(234, 179, 8, 0.7); transform: scale(1); }
   70% { shadow: 0 0 0 10px rgba(234, 179, 8, 0); transform: scale(1.1); }
   100% { shadow: 0 0 0 0 rgba(234, 179, 8, 0); transform: scale(1); }
+  
 }
 
 .marker-cheapest {
   animation: corona-pulse 2s infinite;
-  z-index: 999 !important; /* Para que siempre esté por encima de las demás */
+  pointer-events: auto !important;/* Para que siempre esté por encima de las demás */
 }
