@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { getAllGasStations } from "./services/gasStations";
+
 // IMPORTACIONES DEL MAPA
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -128,6 +129,10 @@ function App() {
   const [userLocation, setUserLocation] = useState(null);
   const [geoError, setGeoError] = useState(null);
   const [currentAverage, setCurrentAverage] = useState(0);
+  const [gpsSort, setGpsSort] = useState("price");
+  const [searchRadius, setSearchRadius] = useState(
+    () => Number(localStorage.getItem("tanke_radius")) || 20
+  );
 
   const loadProvinceData = async (id) => {
     setLoading(true);
@@ -184,22 +189,40 @@ function App() {
           s.address.toLowerCase().includes(term),
       );
     } else if (userLocation) {
+      // 1. Calculamos la distancia
       result = result.map((s) => ({
         ...s,
         distance: calculateDistance(
           userLocation.lat,
           userLocation.lng,
           s.lat,
-          s.lng,
+          s.lng
         ),
       }));
-      result = result.filter((s) => s.distance < 20);
+
+      // 2. Filtramos en radio de 50km
+      const nearStations = result.filter((s) => s.distance < searchRadius);
+
+      if (nearStations.length > 0) {
+        result = nearStations;
+      } else {
+        result.sort((a, b) => a.distance - b.distance);
+        result = result.slice(0, 20);
+      }
     } else {
-      if (selectedMunicipality)
+      if (selectedMunicipality) {
         result = result.filter((s) => s.municipality === selectedMunicipality);
+      }
     }
 
+    // --- ORDENACIÓN FINAL ---
     result.sort((a, b) => {
+      if (userLocation && gpsSort === "distance") {
+        if (a.distance === undefined) return 1;
+        if (b.distance === undefined) return -1;
+        return a.distance - b.distance;
+      }
+
       const getPrice = (station, type) => {
         if (type === "gas95Asc") return station.price95;
         if (type === "gas98Asc") return station.price98;
@@ -208,8 +231,10 @@ function App() {
         if (type === "cnGAsc") return station.priceCNG;
         return 0;
       };
+
       const priceA = getPrice(a, sortType);
       const priceB = getPrice(b, sortType);
+
       if (priceA <= 0) return 1;
       if (priceB <= 0) return -1;
       return priceA - priceB;
@@ -239,6 +264,8 @@ function App() {
     userLocation,
     allStationsInProvince,
     searchTerm,
+    gpsSort,
+    searchRadius,
   ]);
 
   const handleNearMe = () => {
@@ -251,6 +278,12 @@ function App() {
     }
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        console.log(
+          "📍 Coordenadas detectadas:",
+          position.coords.latitude,
+          position.coords.longitude,
+        );
+
         setUserLocation({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
@@ -334,7 +367,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 pb-20 selection:bg-indigo-500 selection:text-white">
-      {/* --- HERO SECTION CON FOTO DE COCHE (RECUPERADO) --- */}
+      {/* --- HERO SECTION CON FOTO DE COCHE --- */}
       <div className="relative py-12 px-4 overflow-hidden shadow-2xl bg-slate-900 min-h-75 flex flex-col justify-center items-center">
         <div className="absolute inset-0 z-0">
           <img
@@ -358,22 +391,22 @@ function App() {
 
       <div className="max-w-7xl mx-auto px-4 -mt-8 relative z-20">
         <div className="bg-white rounded-3xl shadow-xl border border-white/50 mb-8 relative z-30 p-4 md:p-6">
-          {/* BARRA DE CONTROLES */}
-          <div className="flex flex-col md:flex-row gap-4 justify-between items-center mb-4">
+          {/* BARRA DE CONTROLES PRINCIPAL */}
+          <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center mb-4">
             <div className="flex gap-2 w-full md:w-auto">
               {!userLocation ? (
                 <button
                   onClick={handleNearMe}
-                  className="flex-1 md:flex-none px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
+                  className="flex-1 md:flex-none px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 h-12"
                 >
                   📍 Cerca de mí
                 </button>
               ) : (
-                <div className="flex items-center gap-2 bg-green-50 px-4 py-3 rounded-xl border border-green-200 text-green-700 font-bold text-sm">
+                <div className="flex items-center gap-2 bg-green-50 px-4 rounded-xl border border-green-200 text-green-700 font-bold text-sm h-12">
                   <span>📡 GPS Activo</span>
                   <button
                     onClick={() => setUserLocation(null)}
-                    className="ml-2 w-5 h-5 bg-white rounded-full flex items-center justify-center text-xs shadow"
+                    className="ml-2 w-6 h-6 bg-white rounded-full flex items-center justify-center text-xs shadow hover:bg-red-50 transition-colors"
                   >
                     ✕
                   </button>
@@ -381,10 +414,12 @@ function App() {
               )}
               {/* BOTÓN TOGGLE MAPA */}
               <button
-                onClick={() =>
-                  setViewMode(viewMode === "list" ? "map" : "list")
-                }
-                className={`px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2 ${viewMode === "map" ? "bg-slate-800 text-white shadow-lg" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+                onClick={() => setViewMode(viewMode === "list" ? "map" : "list")}
+                className={`px-6 rounded-xl font-bold transition-all flex items-center justify-center gap-2 h-12 ${
+                  viewMode === "map"
+                    ? "bg-slate-800 text-white shadow-lg"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
               >
                 {viewMode === "list" ? "🗺️ Ver Mapa" : "📋 Ver Lista"}
               </button>
@@ -393,11 +428,7 @@ function App() {
             <div className="w-full md:w-64">
               <label className="text-[10px] font-black uppercase text-slate-400 block mb-2">
                 Simular Depósito:{" "}
-                <span
-                  className={
-                    tankSize > 0 ? "text-indigo-600" : "text-slate-400"
-                  }
-                >
+                <span className={tankSize > 0 ? "text-indigo-600" : "text-slate-400"}>
                   {tankSize > 0 ? `${tankSize}L` : "Desactivado"}
                 </span>
               </label>
@@ -420,7 +451,7 @@ function App() {
               <input
                 type="text"
                 placeholder="🔎 Buscar gasolinera..."
-                className="w-full py-3 px-4 pl-10 bg-slate-100 border-transparent rounded-xl text-sm font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition"
+                className="w-full px-4 pl-10 bg-slate-100 border-transparent rounded-xl text-sm font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition h-12"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -429,6 +460,63 @@ function App() {
               </span>
             </div>
           </div>
+
+          {/* PANEL DE HERRAMIENTAS GPS (Solo visible si el GPS está activo) */}
+          {userLocation && (
+            <div className="flex flex-col md:flex-row gap-6 mb-6 p-4 bg-indigo-50/50 border border-indigo-100 rounded-2xl animate-in fade-in slide-in-from-top-4">
+              <div className="flex-1">
+                <label className="text-[10px] font-black uppercase text-indigo-400 block mb-2">
+                  Ordenar resultados por:
+                </label>
+                <div className="flex bg-white p-1 rounded-xl shadow-sm border border-indigo-50 w-full max-w-sm">
+                  <button
+                    onClick={() => setGpsSort("price")}
+                    className={`flex-1 px-4 py-2 text-xs md:text-sm font-bold rounded-lg transition-all ${
+                      gpsSort === "price"
+                        ? "bg-indigo-600 text-white shadow-md"
+                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    💰 Más baratas
+                  </button>
+                  <button
+                    onClick={() => setGpsSort("distance")}
+                    className={`flex-1 px-4 py-2 text-xs md:text-sm font-bold rounded-lg transition-all ${
+                      gpsSort === "distance"
+                        ? "bg-red-500 text-white shadow-md"
+                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    📍 Más cercanas
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 md:max-w-xs">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-[10px] font-black uppercase text-indigo-400">
+                    Radio de búsqueda
+                  </label>
+                  <span className="text-xs font-bold text-white bg-indigo-500 px-2 py-0.5 rounded-md shadow-sm">
+                    {searchRadius} km
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="150"
+                  step="1"
+                  value={searchRadius}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setSearchRadius(v);
+                    localStorage.setItem("tanke_radius", v);
+                  }}
+                  className="w-full h-2 bg-white rounded-lg appearance-none cursor-pointer accent-indigo-600 border border-indigo-100"
+                />
+              </div>
+            </div>
+          )}
 
           {/* FILTROS COMBUSTIBLE */}
           <div className="flex overflow-x-auto pb-2 gap-2 mb-4 scrollbar-hide">
@@ -516,7 +604,7 @@ function App() {
                   className="h-full flex flex-col bg-white rounded-4xl p-6 shadow-sm border border-slate-100 hover:shadow-xl transition-all duration-300 group relative"
                 >
                   <div className="mb-4">
-                    {station.distance && (
+                    {station.distance !== undefined && (
                       <div className="absolute top-6 right-6 bg-slate-900 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg">
                         📍 {station.distance.toFixed(1)} km
                       </div>
@@ -574,7 +662,7 @@ function App() {
                     <PriceTag label="Diésel+" price={station.priceDieselPlus} />
                   </div>
                   <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`}
+                    href={`https://www.google.com/maps/search/?api=1&query=${station.lat},${station.lng}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-auto block w-full py-3.5 bg-slate-100 text-slate-900 text-center rounded-xl font-bold text-sm hover:bg-slate-900 hover:text-white transition-all"
@@ -586,7 +674,7 @@ function App() {
             })}
           </div>
         ) : (
-          <div className="h-150 w-full rounded-3xl overflow-hidden shadow-xl border border-slate-200 z-0">
+          <div className="h-150 w-full rounded-3xl overflow-hidden shadow-xl border border-slate-200 z-0 relative">
             <MapContainer
               center={[40.416, -3.703]}
               zoom={6}
@@ -612,7 +700,7 @@ function App() {
                         {getPriceForStation(station).toFixed(3)} €
                       </div>
                       <a
-                        href={`https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`}
+                        href={`https://www.google.com/maps/search/?api=1&query=${station.lat},${station.lng}`}
                         target="_blank"
                         rel="noreferrer"
                         className="block mt-2 text-indigo-600 font-bold text-xs underline"
