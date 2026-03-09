@@ -205,9 +205,9 @@ function App() {
     return saved === "true";
   });
 
-useEffect(() => {
+  useEffect(() => {
     const root = window.document.documentElement;
-    
+
     if (isDark) {
       root.classList.add("dark");
       root.classList.remove("light"); // Aseguramos que se quita el light
@@ -215,7 +215,7 @@ useEffect(() => {
       root.classList.remove("dark"); // Obligamos a quitar el dark
       root.classList.add("light");
     }
-    
+
     localStorage.setItem("tanke_dark", isDark);
   }, [isDark]);
 
@@ -460,9 +460,10 @@ useEffect(() => {
         <div className="max-w-7xl mx-auto text-center relative z-10 w-full">
           <button
             onClick={() => setIsDark(!isDark)}
-            className="absolute -top-6 right-0 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white p-3 rounded-full transition-all border border-white/20 shadow-xl"
+            className="absolute -top-6 right-0 w-12 h-12 flex items-center justify-center bg-white/10 hover:bg-white/20 backdrop-blur-md text-white rounded-full transition-all border border-white/20 shadow-xl z-50 cursor-pointer hover:scale-110 active:scale-95"
+            title={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
           >
-            {isDark ? "☀️" : "🌙"}
+            <span className="text-xl select-none">{isDark ? "☀️" : "🌙"}</span>
           </button>
           <h1 className="text-5xl md:text-7xl font-black mb-2 tracking-tighter text-white drop-shadow-2xl">
             Tanke<span className="text-indigo-500">.</span>
