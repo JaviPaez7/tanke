@@ -1,0 +1,6 @@
+# Permitir que todos los buscadores rastreen la web
+User-agent: *
+Allow: /
+
+# Indicar dónde está el mapa del sitio (opcional pero recomendado)
+Sitemap: https://tanke-seven.vercel.app/sitemap.xml
