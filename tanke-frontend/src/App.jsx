@@ -2,10 +2,16 @@ import React, { useEffect, useState } from "react";
 import { getAllGasStations } from "./services/gasStations";
 
 // IMPORTACIONES DEL MAPA
-import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  useMap,
+  Circle,
+} from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-
 
 // ARREGLO PARA LOS ICONOS DEL MAPA
 import icon from "leaflet/dist/images/marker-icon.png";
@@ -20,7 +26,7 @@ let DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// DATOS DE PROVINCIAS (Bien escritas)
+// DATOS DE PROVINCIAS
 const provinceIds = {
   Alava: "01",
   Albacete: "02",
@@ -106,47 +112,54 @@ const brandLogos = {
   petroprix: "/petroprix.jpg",
   canary: "/canaryoil.webp",
   spl: "/spl.png",
+  ballenoil: "/ballenoil.svg",
+  alcampo: "/alcampo.jpg",
 };
 
 const createPriceIcon = (price, avg, isCheapest, stationName) => {
-  let colorClass = "bg-slate-600"; 
+  let colorClass = "bg-slate-600";
   if (price > 0 && avg > 0) {
     if (price < avg - 0.01) colorClass = "bg-green-600";
     else if (price > avg + 0.01) colorClass = "bg-red-600";
     else colorClass = "bg-orange-500";
   }
 
-  // Si es la más barata, dorado y animación
-  if (isCheapest) colorClass = "bg-yellow-500 border-yellow-300 marker-cheapest";
+  if (isCheapest)
+    colorClass = "bg-yellow-500 border-yellow-300 marker-cheapest";
 
   const nameLower = stationName.toLowerCase();
-  const brandKey = Object.keys(brandLogos).find(key => nameLower.includes(key));
+  const brandKey = Object.keys(brandLogos).find((key) =>
+    nameLower.includes(key),
+  );
   const logoUrl = brandKey ? brandLogos[brandKey] : null;
 
   return L.divIcon({
     className: "custom-price-marker",
     html: `
-      <div class="flex flex-col items-center relative">
-        ${isCheapest ? '<span class="text-sm mb-[-5px] drop-shadow-md z-30">👑</span>' : ''}
+      <div class="flex flex-col items-center relative transition-transform hover:scale-110">
+        ${isCheapest ? '<span class="text-sm mb-[-5px] drop-shadow-md z-30">👑</span>' : ""}
         
-        ${logoUrl ? `
-          <div class="absolute -top-2 -left-2 w-4 h-4 rounded-full bg-white shadow-md border-2 border-white z-20 flex items-center justify-center p-0.5 overflow-hidden">
+        ${
+          logoUrl
+            ? `
+          <div class="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-white shadow-md border border-slate-200 z-20 flex items-center justify-center p-0.5 overflow-hidden">
             <img src="${logoUrl}" class="w-full h-full object-contain" />
           </div>
-        ` : ''}
+        `
+            : ""
+        }
 
-        <div class="${colorClass} text-white text-[10px] font-black px-1.5 py-0.5 rounded-lg shadow-lg border-2 border-white flex items-center justify-center whitespace-nowrap transition-transform">
+        <div class="${colorClass} text-white text-[10px] font-black px-1.5 py-0.5 rounded-lg shadow-lg border-2 border-white flex items-center justify-center whitespace-nowrap">
           ${price > 0 ? price.toFixed(3) : "--"}€
         </div>
-
-        <div class="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[6px] border-t-${isCheapest ? 'yellow-500' : colorClass.split('-')[1] + '-600'}"></div>
+        <div class="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[6px] border-t-${isCheapest ? "yellow-500" : colorClass.split("-")[1] + "-600"}"></div>
       </div>
     `,
     iconSize: [45, 35],
     iconAnchor: [22, 35],
   });
 };
-// COMPONENTE PARA RECENTRAR EL MAPA AUTOMÁTICAMENTE
+
 function RecenterMap({ stations }) {
   const map = useMap();
   useEffect(() => {
@@ -159,7 +172,6 @@ function RecenterMap({ stations }) {
 }
 
 function App() {
-  // --- ESTADOS CON MEMORIA (PERSISTENCIA) ---
   const [selectedProvince, setSelectedProvince] = useState(() => {
     const saved = localStorage.getItem("tanke_province");
     return provinceIds[saved] ? saved : "Las Palmas";
@@ -175,9 +187,7 @@ function App() {
     () => Number(localStorage.getItem("tanke_liters")) || 0,
   );
 
-  // ESTADO PARA LA VISTA (LISTA O MAPA)
   const [viewMode, setViewMode] = useState("list");
-
   const [stations, setStations] = useState([]);
   const [allStationsInProvince, setAllStationsInProvince] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -188,8 +198,26 @@ function App() {
   const [currentAverage, setCurrentAverage] = useState(0);
   const [gpsSort, setGpsSort] = useState("price");
   const [searchRadius, setSearchRadius] = useState(
-    () => Number(localStorage.getItem("tanke_radius")) || 20
+    () => Number(localStorage.getItem("tanke_radius")) || 20,
   );
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem("tanke_dark");
+    return saved === "true";
+  });
+
+useEffect(() => {
+    const root = window.document.documentElement;
+    
+    if (isDark) {
+      root.classList.add("dark");
+      root.classList.remove("light"); // Aseguramos que se quita el light
+    } else {
+      root.classList.remove("dark"); // Obligamos a quitar el dark
+      root.classList.add("light");
+    }
+    
+    localStorage.setItem("tanke_dark", isDark);
+  }, [isDark]);
 
   const loadProvinceData = async (id) => {
     setLoading(true);
@@ -221,7 +249,6 @@ function App() {
     const provinceName = e.target.value;
     setSelectedProvince(provinceName);
     localStorage.setItem("tanke_province", provinceName);
-
     setSelectedMunicipality("");
     localStorage.removeItem("tanke_municipality");
     setSearchTerm("");
@@ -246,18 +273,16 @@ function App() {
           s.address.toLowerCase().includes(term),
       );
     } else if (userLocation) {
-      // 1. Calculamos la distancia
       result = result.map((s) => ({
         ...s,
         distance: calculateDistance(
           userLocation.lat,
           userLocation.lng,
           s.lat,
-          s.lng
+          s.lng,
         ),
       }));
 
-      // 2. Filtramos en radio de 50km
       const nearStations = result.filter((s) => s.distance < searchRadius);
 
       if (nearStations.length > 0) {
@@ -272,14 +297,12 @@ function App() {
       }
     }
 
-    // --- ORDENACIÓN FINAL ---
     result.sort((a, b) => {
       if (userLocation && gpsSort === "distance") {
         if (a.distance === undefined) return 1;
         if (b.distance === undefined) return -1;
         return a.distance - b.distance;
       }
-
       const getPrice = (station, type) => {
         if (type === "gas95Asc") return station.price95;
         if (type === "gas98Asc") return station.price98;
@@ -288,10 +311,8 @@ function App() {
         if (type === "cnGAsc") return station.priceCNG;
         return 0;
       };
-
       const priceA = getPrice(a, sortType);
       const priceB = getPrice(b, sortType);
-
       if (priceA <= 0) return 1;
       if (priceB <= 0) return -1;
       return priceA - priceB;
@@ -335,12 +356,6 @@ function App() {
     }
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        console.log(
-          "📍 Coordenadas detectadas:",
-          position.coords.latitude,
-          position.coords.longitude,
-        );
-
         setUserLocation({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
@@ -369,28 +384,34 @@ function App() {
 
   const PriceTag = ({ label, price, highlight }) => {
     const isAvailable = price && price > 0;
-    let colorClass = "bg-white border-slate-100 text-slate-700";
-    let textClass = "text-slate-700";
-    let labelClass = "text-slate-400";
+    // Añadidas clases Dark Mode
+    let colorClass =
+      "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-200";
+    let textClass = "text-slate-700 dark:text-slate-200";
+    let labelClass = "text-slate-400 dark:text-slate-500";
 
     if (isAvailable && highlight && currentAverage > 0) {
       if (price < currentAverage - 0.01) {
-        colorClass = "bg-green-50 border-green-200 shadow-sm";
-        textClass = "text-green-700";
-        labelClass = "text-green-600";
+        colorClass =
+          "bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 shadow-sm";
+        textClass = "text-green-700 dark:text-green-400";
+        labelClass = "text-green-600 dark:text-green-500";
       } else if (price > currentAverage + 0.01) {
-        colorClass = "bg-red-50 border-red-200 shadow-sm";
-        textClass = "text-red-700";
-        labelClass = "text-red-500";
+        colorClass =
+          "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 shadow-sm";
+        textClass = "text-red-700 dark:text-red-400";
+        labelClass = "text-red-500 dark:text-red-500";
       } else {
-        colorClass = "bg-orange-50 border-orange-200 shadow-sm";
-        textClass = "text-orange-700";
-        labelClass = "text-orange-500";
+        colorClass =
+          "bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800 shadow-sm";
+        textClass = "text-orange-700 dark:text-orange-400";
+        labelClass = "text-orange-500 dark:text-orange-500";
       }
     } else if (!isAvailable) {
-      colorClass = "bg-slate-50 border-transparent opacity-40";
-      textClass = "text-slate-300";
-      labelClass = "text-slate-300";
+      colorClass =
+        "bg-slate-50 dark:bg-slate-800/50 border-transparent opacity-40";
+      textClass = "text-slate-300 dark:text-slate-600";
+      labelClass = "text-slate-300 dark:text-slate-600";
     }
 
     return (
@@ -409,13 +430,15 @@ function App() {
                 {price.toFixed(3)}
               </span>
               <span
-                className={`text-[10px] font-medium ${isAvailable && highlight ? textClass : "text-slate-400"}`}
+                className={`text-[10px] font-medium ${isAvailable && highlight ? textClass : "text-slate-400 dark:text-slate-500"}`}
               >
                 €
               </span>
             </>
           ) : (
-            <span className="font-bold text-lg text-slate-300">--</span>
+            <span className="font-bold text-lg text-slate-300 dark:text-slate-600">
+              --
+            </span>
           )}
         </div>
       </div>
@@ -423,8 +446,8 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 pb-20 selection:bg-indigo-500 selection:text-white">
-      {/* --- HERO SECTION CON FOTO DE COCHE --- */}
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-100 pb-20 transition-colors duration-500">
+      {/* HERO SECTION */}
       <div className="relative py-12 px-4 overflow-hidden shadow-2xl bg-slate-900 min-h-75 flex flex-col justify-center items-center">
         <div className="absolute inset-0 z-0">
           <img
@@ -432,9 +455,15 @@ function App() {
             alt="Hero"
             className="w-full h-full object-cover opacity-80"
           />
-          <div className="absolute inset-0 bg-linear-to-b from-slate-900/90 via-slate-900/50 to-slate-900/90"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/90 via-slate-900/50 to-slate-900/90"></div>
         </div>
-        <div className="max-w-7xl mx-auto text-center relative z-10">
+        <div className="max-w-7xl mx-auto text-center relative z-10 w-full">
+          <button
+            onClick={() => setIsDark(!isDark)}
+            className="absolute -top-6 right-0 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white p-3 rounded-full transition-all border border-white/20 shadow-xl"
+          >
+            {isDark ? "☀️" : "🌙"}
+          </button>
           <h1 className="text-5xl md:text-7xl font-black mb-2 tracking-tighter text-white drop-shadow-2xl">
             Tanke<span className="text-indigo-500">.</span>
           </h1>
@@ -447,35 +476,36 @@ function App() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 -mt-8 relative z-20">
-        <div className="bg-white rounded-3xl shadow-xl border border-white/50 mb-8 relative z-30 p-4 md:p-6">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-white/50 dark:border-slate-800 mb-8 p-4 md:p-6 transition-colors duration-300">
           {/* BARRA DE CONTROLES PRINCIPAL */}
           <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center mb-4">
             <div className="flex gap-2 w-full md:w-auto">
               {!userLocation ? (
                 <button
                   onClick={handleNearMe}
-                  className="flex-1 md:flex-none px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 h-12"
+                  className="flex-1 md:flex-none px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 dark:shadow-indigo-900/50 transition-all flex items-center justify-center gap-2 h-12"
                 >
                   📍 Cerca de mí
                 </button>
               ) : (
-                <div className="flex items-center gap-2 bg-green-50 px-4 rounded-xl border border-green-200 text-green-700 font-bold text-sm h-12">
+                <div className="flex items-center gap-2 bg-green-50 dark:bg-green-900/20 px-4 rounded-xl border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 font-bold text-sm h-12">
                   <span>📡 GPS Activo</span>
                   <button
                     onClick={() => setUserLocation(null)}
-                    className="ml-2 w-6 h-6 bg-white rounded-full flex items-center justify-center text-xs shadow hover:bg-red-50 transition-colors"
+                    className="ml-2 w-6 h-6 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-xs shadow hover:bg-red-50 dark:hover:bg-red-900/50 transition-colors"
                   >
                     ✕
                   </button>
                 </div>
               )}
-              {/* BOTÓN TOGGLE MAPA */}
               <button
-                onClick={() => setViewMode(viewMode === "list" ? "map" : "list")}
+                onClick={() =>
+                  setViewMode(viewMode === "list" ? "map" : "list")
+                }
                 className={`px-6 rounded-xl font-bold transition-all flex items-center justify-center gap-2 h-12 ${
                   viewMode === "map"
-                    ? "bg-slate-800 text-white shadow-lg"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    ? "bg-slate-800 dark:bg-indigo-600 text-white shadow-lg"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                 }`}
               >
                 {viewMode === "list" ? "🗺️ Ver Mapa" : "📋 Ver Lista"}
@@ -483,9 +513,15 @@ function App() {
             </div>
 
             <div className="w-full md:w-64">
-              <label className="text-[10px] font-black uppercase text-slate-400 block mb-2">
+              <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 block mb-2">
                 Simular Depósito:{" "}
-                <span className={tankSize > 0 ? "text-indigo-600" : "text-slate-400"}>
+                <span
+                  className={
+                    tankSize > 0
+                      ? "text-indigo-600 dark:text-indigo-400"
+                      : "text-slate-400"
+                  }
+                >
                   {tankSize > 0 ? `${tankSize}L` : "Desactivado"}
                 </span>
               </label>
@@ -500,7 +536,7 @@ function App() {
                   setTankSize(v);
                   localStorage.setItem("tanke_liters", v);
                 }}
-                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-600"
               />
             </div>
 
@@ -508,7 +544,7 @@ function App() {
               <input
                 type="text"
                 placeholder="🔎 Buscar gasolinera..."
-                className="w-full px-4 pl-10 bg-slate-100 border-transparent rounded-xl text-sm font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition h-12"
+                className="w-full px-4 pl-10 bg-slate-100 dark:bg-slate-800 border-transparent rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:bg-white dark:focus:bg-slate-700 focus:ring-2 focus:ring-indigo-500 transition h-12"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -518,20 +554,20 @@ function App() {
             </div>
           </div>
 
-          {/* PANEL DE HERRAMIENTAS GPS (Solo visible si el GPS está activo) */}
+          {/* PANEL GPS */}
           {userLocation && (
-            <div className="flex flex-col md:flex-row gap-6 mb-6 p-4 bg-indigo-50/50 border border-indigo-100 rounded-2xl animate-in fade-in slide-in-from-top-4">
+            <div className="flex flex-col md:flex-row gap-6 mb-6 p-4 bg-indigo-50/50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/50 rounded-2xl animate-in fade-in slide-in-from-top-4">
               <div className="flex-1">
-                <label className="text-[10px] font-black uppercase text-indigo-400 block mb-2">
+                <label className="text-[10px] font-black uppercase text-indigo-400 dark:text-indigo-300 block mb-2">
                   Ordenar resultados por:
                 </label>
-                <div className="flex bg-white p-1 rounded-xl shadow-sm border border-indigo-50 w-full max-w-sm">
+                <div className="flex bg-white dark:bg-slate-800 p-1 rounded-xl shadow-sm border border-indigo-50 dark:border-slate-700 w-full max-w-sm">
                   <button
                     onClick={() => setGpsSort("price")}
                     className={`flex-1 px-4 py-2 text-xs md:text-sm font-bold rounded-lg transition-all ${
                       gpsSort === "price"
                         ? "bg-indigo-600 text-white shadow-md"
-                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
                     }`}
                   >
                     💰 Más baratas
@@ -541,7 +577,7 @@ function App() {
                     className={`flex-1 px-4 py-2 text-xs md:text-sm font-bold rounded-lg transition-all ${
                       gpsSort === "distance"
                         ? "bg-red-500 text-white shadow-md"
-                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
                     }`}
                   >
                     📍 Más cercanas
@@ -551,7 +587,7 @@ function App() {
 
               <div className="flex-1 md:max-w-xs">
                 <div className="flex justify-between items-center mb-2">
-                  <label className="text-[10px] font-black uppercase text-indigo-400">
+                  <label className="text-[10px] font-black uppercase text-indigo-400 dark:text-indigo-300">
                     Radio de búsqueda
                   </label>
                   <span className="text-xs font-bold text-white bg-indigo-500 px-2 py-0.5 rounded-md shadow-sm">
@@ -569,7 +605,7 @@ function App() {
                     setSearchRadius(v);
                     localStorage.setItem("tanke_radius", v);
                   }}
-                  className="w-full h-2 bg-white rounded-lg appearance-none cursor-pointer accent-indigo-600 border border-indigo-100"
+                  className="w-full h-2 bg-white dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-600 border border-indigo-100 dark:border-slate-600"
                 />
               </div>
             </div>
@@ -590,7 +626,11 @@ function App() {
                   setSortType(btn.id);
                   localStorage.setItem("tanke_sort", btn.id);
                 }}
-                className={`whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold transition-all ${sortType === btn.id ? "bg-indigo-50 text-indigo-700 border border-indigo-200" : "bg-slate-50 text-slate-500 border border-slate-100"}`}
+                className={`whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                  sortType === btn.id
+                    ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                    : "bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
+                }`}
               >
                 {btn.label}
               </button>
@@ -600,7 +640,7 @@ function App() {
           {/* SELECTORES DE ZONA */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <select
-              className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500"
+              className="p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500"
               value={selectedProvince}
               onChange={handleProvinceChange}
             >
@@ -613,7 +653,7 @@ function App() {
                 ))}
             </select>
             <select
-              className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500"
+              className="p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
               value={selectedMunicipality}
               disabled={!selectedProvince}
               onChange={(e) => {
@@ -655,29 +695,50 @@ function App() {
               const price = getPriceForStation(station);
               const total = price * tankSize;
               const savings = (currentAverage - price) * tankSize;
+
+              const nameLower = station.name.toLowerCase();
+              const brandKey = Object.keys(brandLogos).find((key) =>
+                nameLower.includes(key),
+              );
+              const logoUrl = brandKey ? brandLogos[brandKey] : null;
+
               return (
                 <div
                   key={station.id}
-                  className="h-full flex flex-col bg-white rounded-4xl p-6 shadow-sm border border-slate-100 hover:shadow-xl transition-all duration-300 group relative"
+                  className="h-full flex flex-col bg-white dark:bg-slate-900 rounded-4xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-xl dark:hover:shadow-indigo-900/20 transition-all duration-300 group relative"
                 >
-                  <div className="mb-4">
+                  <div className="mb-4 flex items-start gap-3">
+                    {logoUrl && (
+                      <div className="flex-shrink-0 w-12 h-12 rounded-2xl bg-slate-50 dark:bg-white border border-slate-100 dark:border-slate-700 shadow-sm p-2 flex items-center justify-center overflow-hidden">
+                        <img
+                          src={logoUrl}
+                          alt={brandKey}
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-black text-slate-800 dark:text-white text-lg leading-tight truncate">
+                        {station.name}
+                      </h3>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 font-medium truncate">
+                        {station.address}
+                      </p>
+                      <span className="text-[9px] font-bold uppercase bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-md inline-block mt-2">
+                        {station.municipality}
+                      </span>
+                    </div>
+
                     {station.distance !== undefined && (
-                      <div className="absolute top-6 right-6 bg-slate-900 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg">
+                      <div className="flex-shrink-0 bg-slate-900 dark:bg-slate-800 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg whitespace-nowrap self-start">
                         📍 {station.distance.toFixed(1)} km
                       </div>
                     )}
-                    <h3 className="font-black text-slate-800 text-lg leading-tight truncate">
-                      {station.name}
-                    </h3>
-                    <p className="text-xs text-slate-400 font-medium truncate">
-                      {station.address}
-                    </p>
-                    <span className="text-[9px] font-bold uppercase bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-md inline-block mt-2">
-                      {station.municipality}
-                    </span>
                   </div>
+
                   {tankSize > 0 && (
-                    <div className="bg-slate-900 rounded-2xl p-4 mb-4 text-white animate-in fade-in zoom-in duration-300">
+                    <div className="bg-slate-900 dark:bg-slate-800 rounded-2xl p-4 mb-4 text-white animate-in fade-in zoom-in duration-300">
                       <div className="flex justify-between items-end">
                         <div>
                           <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">
@@ -700,6 +761,7 @@ function App() {
                       </div>
                     </div>
                   )}
+
                   <div className="grid grid-cols-2 gap-2 mb-6">
                     <PriceTag
                       label="G95"
@@ -719,10 +781,10 @@ function App() {
                     <PriceTag label="Diésel+" price={station.priceDieselPlus} />
                   </div>
                   <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${station.lat},${station.lng}`}
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-auto block w-full py-3.5 bg-slate-100 text-slate-900 text-center rounded-xl font-bold text-sm hover:bg-slate-900 hover:text-white transition-all"
+                    className="mt-auto block w-full py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-center rounded-xl font-bold text-sm hover:bg-slate-900 hover:text-white dark:hover:bg-indigo-600 transition-all"
                   >
                     Ir a la estación ➜
                   </a>
@@ -731,95 +793,109 @@ function App() {
             })}
           </div>
         ) : (
-          <div className="h-150 w-full rounded-3xl overflow-hidden shadow-xl border border-slate-200 z-0 relative">
+          <div className="h-150 w-full rounded-3xl overflow-hidden shadow-xl border border-slate-200 dark:border-slate-800 z-0 relative">
             <MapContainer
-  center={[40.416, -3.703]} // Centro por defecto (Madrid)
-  zoom={6}
-  scrollWheelZoom={true}
-  className="h-full w-full"
->
-  <TileLayer
-    attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-    url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-  />
+              center={[40.416, -3.703]}
+              zoom={6}
+              scrollWheelZoom={true}
+              className="h-full w-full"
+            >
+              {/* MAGIA DEL MAPA: Si es dark mode, cargamos las tiles oscuras de CartoDB */}
+              <TileLayer
+                attribution='© <a href="https://carto.com/attributions">CARTO</a>'
+                url={
+                  isDark
+                    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" // 🌑 Modo Noche
+                    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" // ☀️ Modo Día
+                }
+              />
 
-  <RecenterMap stations={stations} />
+              <RecenterMap stations={stations} />
 
-  {/* 🟢 RADIO Y UBICACIÓN DEL USUARIO */}
-  {userLocation && (
-    <>
-      <Circle
-        center={[userLocation.lat, userLocation.lng]}
-        radius={searchRadius * 1000}
-        pathOptions={{
-          color: "#4f46e5",
-          fillColor: "#4f46e5",
-          fillOpacity: 0.1,
-          weight: 2,
-          dashArray: "8, 8",
-        }}
-      />
-      <Marker position={[userLocation.lat, userLocation.lng]}>
-        <Popup>
-          <div className="text-center font-bold text-indigo-600">
-            📍 Estás aquí
-            <br />
-            <span className="text-xs text-slate-500 font-normal">
-              Radio: {searchRadius} km
-            </span>
-          </div>
-        </Popup>
-      </Marker>
-    </>
-  )}
+              {userLocation && (
+                <>
+                  <Circle
+                    center={[userLocation.lat, userLocation.lng]}
+                    radius={searchRadius * 1000}
+                    pathOptions={{
+                      color: "#4f46e5",
+                      fillColor: "#4f46e5",
+                      fillOpacity: 0.1,
+                      weight: 2,
+                      dashArray: "8, 8",
+                    }}
+                  />
+                  <Marker position={[userLocation.lat, userLocation.lng]}>
+                    <Popup>
+                      <div className="text-center font-bold text-indigo-600">
+                        📍 Estás aquí
+                        <br />
+                        <span className="text-xs text-slate-500 font-normal">
+                          Radio: {searchRadius} km
+                        </span>
+                      </div>
+                    </Popup>
+                  </Marker>
+                </>
+              )}
 
-  {/* 👑 LÓGICA DE MARCADORES CON CORONA */}
-  {(() => {
-    // 1. Antes de dibujar, buscamos cuál es el precio más bajo de la lista actual
-    const currentPrices = stations
-      .slice(0, 100)
-      .map((s) => getPriceForStation(s))
-      .filter((p) => p > 0);
-    
-    const minPrice = currentPrices.length > 0 ? Math.min(...currentPrices) : 0;
+              {(() => {
+                const currentPrices = stations
+                  .slice(0, 100)
+                  .map((s) => getPriceForStation(s))
+                  .filter((p) => p > 0);
 
-    // 2. Ahora dibujamos los marcadores sabiendo ya cuál es el mínimo
-    return stations.slice(0, 100).map((station) => {
-      const stationPrice = getPriceForStation(station);
-      
-      // Si su precio coincide con el mínimo, ¡es la reina!
-      const isCheapest = stationPrice > 0 && stationPrice === minPrice;
+                const minPrice =
+                  currentPrices.length > 0 ? Math.min(...currentPrices) : 0;
 
-      return (
-        <Marker
-          key={station.id}
-          position={[station.lat, station.lng]}
-          icon={createPriceIcon(stationPrice, currentAverage, isCheapest, station.name)}
-          zIndexOffset={isCheapest ? 1000 : 0}
-        >
-          <Popup>
-            <div className="text-center">
-              {isCheapest && <div className="text-xs font-bold text-yellow-600 mb-1">👑 ¡LA MÁS BARATA!</div>}
-              <h3 className="font-bold text-slate-800">{station.name}</h3>
-              <p className="text-xs text-slate-500">{station.address}</p>
-              <div className="mt-2 bg-indigo-600 text-white font-black py-1 px-2 rounded-lg text-lg">
-                {stationPrice.toFixed(3)} €
-              </div>
-              <a
-                href={`https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`}
-                target="_blank"
-                rel="noreferrer"
-                className="block mt-2 text-indigo-600 font-bold text-xs underline"
-              >
-                Cómo llegar
-              </a>
-            </div>
-          </Popup>
-        </Marker>
-      );
-    });
-  })()}
-</MapContainer>
+                return stations.slice(0, 100).map((station) => {
+                  const stationPrice = getPriceForStation(station);
+                  const isCheapest =
+                    stationPrice > 0 && stationPrice === minPrice;
+
+                  return (
+                    <Marker
+                      key={station.id}
+                      position={[station.lat, station.lng]}
+                      icon={createPriceIcon(
+                        stationPrice,
+                        currentAverage,
+                        isCheapest,
+                        station.name,
+                      )}
+                      zIndexOffset={isCheapest ? 1000 : 0}
+                    >
+                      <Popup>
+                        <div className="text-center min-w-[120px]">
+                          {isCheapest && (
+                            <div className="text-xs font-bold text-yellow-600 mb-1">
+                              👑 ¡LA MÁS BARATA!
+                            </div>
+                          )}
+                          <h3 className="font-bold text-slate-800">
+                            {station.name}
+                          </h3>
+                          <p className="text-xs text-slate-500">
+                            {station.address}
+                          </p>
+                          <div className="mt-2 bg-indigo-600 text-white font-black py-1 px-2 rounded-lg text-lg">
+                            {stationPrice.toFixed(3)} €
+                          </div>
+                          <a
+                            href={`https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block mt-2 text-indigo-600 font-bold text-xs underline"
+                          >
+                            Cómo llegar
+                          </a>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  );
+                });
+              })()}
+            </MapContainer>
           </div>
         )}
       </div>
