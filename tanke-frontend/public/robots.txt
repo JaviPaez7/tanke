@@ -2,5 +2,5 @@
 User-agent: *
 Allow: /
 
-# Indicar dónde está el mapa del sitio (opcional pero recomendado)
-Sitemap: https://tanke-seven.vercel.app/sitemap.xml
+# Si tienes un sitemap en el futuro, se pone aquí
+# Sitemap: https://tanke-seven.vercel.app/sitemap.xml

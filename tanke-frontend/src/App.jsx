@@ -486,7 +486,7 @@ function App() {
                   onClick={handleNearMe}
                   className="flex-1 md:flex-none px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 dark:shadow-indigo-900/50 transition-all flex items-center justify-center gap-2 h-12"
                 >
-                  📍 Cerca de mí
+                  📍 Buscar cerca de mí
                 </button>
               ) : (
                 <div className="flex items-center gap-2 bg-green-50 dark:bg-green-900/20 px-4 rounded-xl border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 font-bold text-sm h-12">
