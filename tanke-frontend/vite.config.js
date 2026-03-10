@@ -19,6 +19,7 @@ export default defineConfig({
         short_name: "Tanke",
         description: "Buscador de gasolineras baratas en tiempo real",
         theme_color: "#0f172a",
+        background_color: "#0f172a",
         icons: [
           {
             src: "pwa-192x192.png",
@@ -29,6 +30,7 @@ export default defineConfig({
             src: "pwa-512x512.png",
             sizes: "512x512",
             type: "image/png",
+            purpose: "any maskable"
           },
         ],
       },
