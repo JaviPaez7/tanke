@@ -1,12 +1,11 @@
 import axios from "axios";
 
-// ✅ CAMBIO CLAVE: Ya no usamos Render. 
-// Como el backend está en el mismo sitio que la web (Vercel), usamos una ruta relativa.
+// En local usa el proxy de Vite; en producción llama directo a la serverless de Vercel
 const API_URL = "/api/gas";
 
 export const getAllGasStations = async (provinceId = "35") => {
   try {
-    const response = await axios.get(`${API_URL}/${provinceId}`);
+    const response = await axios.get(`${API_URL}?id=${provinceId}`);
 
     // ... (el resto del código déjalo igual)
     const rawData = response.data.ListaEESSPrecio || response.data;
