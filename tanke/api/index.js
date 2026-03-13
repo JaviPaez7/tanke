@@ -9,7 +9,7 @@ app.use(cors());
 
 const GOV_URL = "https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/FiltroProvincia";
 
-app.get("/gas/:id", async (req, res) => {
+app.get("/api/gas/:id", async (req, res) => {
   const { id } = req.params;
   const targetUrl = `${GOV_URL}/${id}`;
 
@@ -21,7 +21,7 @@ app.get("/gas/:id", async (req, res) => {
     const response = await axios.get(targetUrl, {
       timeout: 15000, 
       headers: {
-        "User-Agent": "Mozilla/5.0...",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "application/json",
       },
     });
