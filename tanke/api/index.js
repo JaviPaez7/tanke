@@ -39,6 +39,7 @@ app.get("/gas/:id", getGasData);     // Por si Vercel limpia el prefijo /api
 // Ruta de diagnóstico (Si entras a /api/health y ves "OK", es que el back funciona)
 app.get("/api/health", (req, res) => res.send("Backend de Tanke: OK"));
 
+const PORT = process.env.PORT || 3001;
 if (process.env.NODE_ENV !== 'production') {
   app.listen(PORT, () => {
     console.log(`🚀 Backend listo en http://localhost:${PORT}`);

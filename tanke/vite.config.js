@@ -36,4 +36,13 @@ export default defineConfig({
       },
     }),
   ],
+  server: {
+    proxy: {
+      '/api/gas': {
+        target: 'https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/FiltroProvincia',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/gas/, '')
+      } 
+    }
+  }
 });
