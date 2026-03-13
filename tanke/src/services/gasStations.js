@@ -1,19 +1,19 @@
 import axios from "axios";
 
-// 🔥 CAMBIO CLAVE: Conectamos con tu servidor de Render en la nube
-const API_URL = "https://tanke-v3lv.onrender.com/api/gas";
+// ✅ CAMBIO CLAVE: Ya no usamos Render. 
+// Como el backend está en el mismo sitio que la web (Vercel), usamos una ruta relativa.
+const API_URL = "/api/gas";
 
 export const getAllGasStations = async (provinceId = "35") => {
   try {
     const response = await axios.get(`${API_URL}/${provinceId}`);
 
-    // ... (el resto del código déjalo igual, no hace falta tocar nada más)
+    // ... (el resto del código déjalo igual)
     const rawData = response.data.ListaEESSPrecio || response.data;
     if (!Array.isArray(rawData)) return [];
 
     return rawData
       .map((station) => ({
-        // ... (todo tu mapeo sigue igual) ...
         id: station["IDEESS"],
         name: station["Rótulo"],
         address: station["Dirección"],
@@ -43,7 +43,7 @@ export const getAllGasStations = async (provinceId = "35") => {
       }))
       .filter((s) => s.price95 > 0 || s.priceDiesel > 0);
   } catch (error) {
-    console.error("Error conectando con Render:", error);
+    console.error("Error conectando con la API de Tanke:", error);
     return [];
   }
 };
