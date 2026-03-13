@@ -237,6 +237,7 @@ const PriceTag = React.memo(({ label, price, highlight, currentAverage }) => {
 function App() {
   const [selectedProvince, setSelectedProvince] = useState(() => {
     const saved = localStorage.getItem("tanke_province");
+    if (saved === "Toda España") return "Toda España";
     return provinceIds[saved] ? saved : "Las Palmas";
   });
 
@@ -304,7 +305,7 @@ function App() {
   };
 
   useEffect(() => {
-    const idToLoad = provinceIds[selectedProvince];
+    const idToLoad = selectedProvince === "Toda España" ? "all" : provinceIds[selectedProvince];
     loadProvinceData(idToLoad || "35");
   }, []);
 
@@ -315,7 +316,7 @@ function App() {
     setSelectedMunicipality("");
     localStorage.removeItem("tanke_municipality");
     setSearchTerm("");
-    const id = provinceIds[provinceName];
+    const id = provinceName === "Toda España" ? "all" : provinceIds[provinceName];
     if (id) loadProvinceData(id);
   };
 
@@ -645,6 +646,7 @@ function App() {
               value={selectedProvince}
               onChange={handleProvinceChange}
             >
+              <option value="Toda España">🌍 Toda España</option>
               {Object.keys(provinceIds)
                 .sort()
                 .map((p) => (

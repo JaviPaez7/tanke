@@ -42,9 +42,12 @@ export default defineConfig({
         target: 'https://sedeaplicaciones.minetur.gob.es',
         changeOrigin: true,
         rewrite: (path) => {
-          // Convierte /api/gas?id=35 -> /ServiciosRESTCarburantes/.../FiltroProvincia/35
+          // Si es 'all', pide toda España. Si no, filtra por provincia.
           const url = new URL(path, 'http://localhost');
           const id = url.searchParams.get('id') || '35';
+          if (id === 'all') {
+            return `/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/`;
+          }
           return `/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/FiltroProvincia/${id}`;
         }
       }

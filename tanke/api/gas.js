@@ -4,10 +4,12 @@
 export default async function handler(req, res) {
   const { id = "35" } = req.query;
 
-  const GOV_URL =
+  const GOV_URL_PROVINCE =
     "https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/FiltroProvincia";
+  const GOV_URL_ALL =
+    "https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/";
 
-  const targetUrl = `${GOV_URL}/${id}`;
+  const targetUrl = id === "all" ? GOV_URL_ALL : `${GOV_URL_PROVINCE}/${id}`;
 
   try {
     // Cache de 10 minutos en Vercel CDN, 5 minutos de gracia
