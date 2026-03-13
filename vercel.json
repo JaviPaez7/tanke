@@ -1,8 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/api/gas/(.*)",
-      "destination": "https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/FiltroProvincia/$1"
+      "source": "/api/(.*)",
+      "destination": "/api"
     },
     {
       "source": "/(.*)",

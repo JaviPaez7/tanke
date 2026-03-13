@@ -171,6 +171,69 @@ function RecenterMap({ stations }) {
   return null;
 }
 
+const PriceTag = React.memo(({ label, price, highlight, currentAverage }) => {
+  const isAvailable = price && price > 0;
+  // Añadidas clases Dark Mode
+  let colorClass =
+    "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-200";
+  let textClass = "text-slate-700 dark:text-slate-200";
+  let labelClass = "text-slate-400 dark:text-slate-500";
+
+  if (isAvailable && highlight && currentAverage > 0) {
+    if (price < currentAverage - 0.01) {
+      colorClass =
+        "bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 shadow-sm";
+      textClass = "text-green-700 dark:text-green-400";
+      labelClass = "text-green-600 dark:text-green-500";
+    } else if (price > currentAverage + 0.01) {
+      colorClass =
+        "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 shadow-sm";
+      textClass = "text-red-700 dark:text-red-400";
+      labelClass = "text-red-500 dark:text-red-500";
+    } else {
+      colorClass =
+        "bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800 shadow-sm";
+      textClass = "text-orange-700 dark:text-orange-400";
+      labelClass = "text-orange-500 dark:text-orange-500";
+    }
+  } else if (!isAvailable) {
+    colorClass =
+      "bg-slate-50 dark:bg-slate-800/50 border-transparent opacity-40";
+    textClass = "text-slate-300 dark:text-slate-600";
+    labelClass = "text-slate-300 dark:text-slate-600";
+  }
+
+  return (
+    <div
+      className={`flex flex-col justify-center items-center p-2.5 rounded-xl border transition-all duration-300 ${colorClass}`}
+    >
+      <span
+        className={`text-[9px] font-bold uppercase tracking-wider mb-0.5 ${labelClass}`}
+      >
+        {label}
+      </span>
+      <div className="flex items-baseline gap-0.5">
+        {isAvailable ? (
+          <>
+            <span className={`font-black text-lg ${textClass}`}>
+              {price.toFixed(3)}
+            </span>
+            <span
+              className={`text-[10px] font-medium ${isAvailable && highlight ? textClass : "text-slate-400 dark:text-slate-500"}`}
+            >
+              €
+            </span>
+          </>
+        ) : (
+          <span className="font-bold text-lg text-slate-300 dark:text-slate-600">
+            --
+          </span>
+        )}
+      </div>
+    </div>
+  );
+});
+
 function App() {
   const [selectedProvince, setSelectedProvince] = useState(() => {
     const saved = localStorage.getItem("tanke_province");
@@ -380,69 +443,6 @@ function App() {
     if (sortType === "glpAsc") return station.priceGLP;
     if (sortType === "cnGAsc") return station.priceCNG;
     return 0;
-  };
-
-  const PriceTag = ({ label, price, highlight }) => {
-    const isAvailable = price && price > 0;
-    // Añadidas clases Dark Mode
-    let colorClass =
-      "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-200";
-    let textClass = "text-slate-700 dark:text-slate-200";
-    let labelClass = "text-slate-400 dark:text-slate-500";
-
-    if (isAvailable && highlight && currentAverage > 0) {
-      if (price < currentAverage - 0.01) {
-        colorClass =
-          "bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 shadow-sm";
-        textClass = "text-green-700 dark:text-green-400";
-        labelClass = "text-green-600 dark:text-green-500";
-      } else if (price > currentAverage + 0.01) {
-        colorClass =
-          "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 shadow-sm";
-        textClass = "text-red-700 dark:text-red-400";
-        labelClass = "text-red-500 dark:text-red-500";
-      } else {
-        colorClass =
-          "bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800 shadow-sm";
-        textClass = "text-orange-700 dark:text-orange-400";
-        labelClass = "text-orange-500 dark:text-orange-500";
-      }
-    } else if (!isAvailable) {
-      colorClass =
-        "bg-slate-50 dark:bg-slate-800/50 border-transparent opacity-40";
-      textClass = "text-slate-300 dark:text-slate-600";
-      labelClass = "text-slate-300 dark:text-slate-600";
-    }
-
-    return (
-      <div
-        className={`flex flex-col justify-center items-center p-2.5 rounded-xl border transition-all duration-300 ${colorClass}`}
-      >
-        <span
-          className={`text-[9px] font-bold uppercase tracking-wider mb-0.5 ${labelClass}`}
-        >
-          {label}
-        </span>
-        <div className="flex items-baseline gap-0.5">
-          {isAvailable ? (
-            <>
-              <span className={`font-black text-lg ${textClass}`}>
-                {price.toFixed(3)}
-              </span>
-              <span
-                className={`text-[10px] font-medium ${isAvailable && highlight ? textClass : "text-slate-400 dark:text-slate-500"}`}
-              >
-                €
-              </span>
-            </>
-          ) : (
-            <span className="font-bold text-lg text-slate-300 dark:text-slate-600">
-              --
-            </span>
-          )}
-        </div>
-      </div>
-    );
   };
 
   return (
@@ -768,18 +768,25 @@ function App() {
                       label="G95"
                       price={station.price95}
                       highlight={sortType === "gas95Asc"}
+                      currentAverage={currentAverage}
                     />
                     <PriceTag
                       label="Diésel"
                       price={station.priceDiesel}
                       highlight={sortType === "dieselAsc"}
+                      currentAverage={currentAverage}
                     />
                     <PriceTag
                       label="G98"
                       price={station.price98}
                       highlight={sortType === "gas98Asc"}
+                      currentAverage={currentAverage}
                     />
-                    <PriceTag label="Diésel+" price={station.priceDieselPlus} />
+                    <PriceTag 
+                      label="Diésel+" 
+                      price={station.priceDieselPlus} 
+                      currentAverage={currentAverage}
+                    />
                   </div>
                   <a
                     href={`https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`}
