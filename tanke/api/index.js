@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
-
+// ✅ CONFIGURACIÓN BASE
 const app = express();
 app.use(cors());
 
