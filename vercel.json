@@ -6,7 +6,7 @@
     },
     {
       "source": "/(.*)",
-      "destination": "/tanke-frontend/dist/$1"
+      "destination": "/index.html"
     }
   ]
 }
