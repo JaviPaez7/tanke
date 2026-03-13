@@ -9,7 +9,7 @@ app.use(cors());
 
 const GOV_URL = "https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/FiltroProvincia";
 
-app.get("/api/gas/:id", async (req, res) => {
+app.get("/gas/:id", async (req, res) => {
   const { id } = req.params;
   const targetUrl = `${GOV_URL}/${id}`;
 
