@@ -1,0 +1,13 @@
+services:
+  tanke:
+    image: ghcr.io/javipaez7/tanke:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    mem_limit: 128m
+    ports:
+      - '172.17.0.1:3002:3002'
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tanke.rule=Host(`tanke.javistudio.dev`)"
+      - "traefik.http.routers.tanke.entrypoints=websecure"
+      - "traefik.http.routers.tanke.tls.certresolver=le"
+      - "traefik.http.services.tanke.loadbalancer.server.port=3002"
