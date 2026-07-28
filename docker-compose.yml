@@ -5,9 +5,17 @@ services:
     mem_limit: 128m
     ports:
       - '172.17.0.1:3002:3002'
+    networks:
+      - default
+      - public-edge
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=public-edge"
       - "traefik.http.routers.tanke.rule=Host(`tanke.javistudio.dev`)"
       - "traefik.http.routers.tanke.entrypoints=websecure"
       - "traefik.http.routers.tanke.tls.certresolver=le"
       - "traefik.http.services.tanke.loadbalancer.server.port=3002"
+
+networks:
+  public-edge:
+    external: true
