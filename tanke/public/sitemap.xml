@@ -2,8 +2,22 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://tanke.javistudio.dev/</loc>
-    <lastmod>2026-07-29</lastmod>
-    <changefreq>daily</changefreq>
+    <changefreq>hourly</changefreq>
     <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://tanke.javistudio.dev/guia/ahorrar-gasolina</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://tanke.javistudio.dev/gasolineras/las-palmas</loc>
+    <changefreq>hourly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://tanke.javistudio.dev/gasolineras/santa-cruz-de-tenerife</loc>
+    <changefreq>hourly</changefreq>
+    <priority>0.9</priority>
   </url>
 </urlset>

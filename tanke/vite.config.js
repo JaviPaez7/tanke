@@ -10,13 +10,16 @@ export default defineConfig({
       includeAssets: [
         "favicon.ico",
         "apple-touch-icon.png",
+        "og.png",
         "robots.txt",
         "sitemap.xml",
       ],
       manifest: {
-        name: "Tanke - Ahorra en Gasolina",
+        name: "Tanke - Gasolineras baratas en España",
         short_name: "Tanke",
-        description: "Buscador de gasolineras baratas en tiempo real",
+        description:
+          "Compara precios de gasolina y diésel en Canarias y toda España",
+        lang: "es",
         theme_color: "#0f172a",
         background_color: "#0f172a",
         icons: [
@@ -32,6 +35,17 @@ export default defineConfig({
             type: "image/png",
             purpose: "maskable"
           },
+        ],
+      },
+      workbox: {
+        navigateFallback: "/index.html",
+        navigateFallbackDenylist: [
+          /^\/api\//,
+          /^\/gasolineras\//,
+          /^\/precios\//,
+          /^\/guia\//,
+          /^\/sitemap\.xml$/,
+          /^\/robots\.txt$/,
         ],
       },
     }),

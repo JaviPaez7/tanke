@@ -9,8 +9,9 @@ FROM node:22-slim
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package*.json ./
-RUN npm ci --omit=dev && npm install express
+RUN npm ci --omit=dev
 COPY server.js ./
+COPY seo ./seo
 COPY --from=build /app/dist ./dist
 EXPOSE 3002
 CMD ["node", "server.js"]

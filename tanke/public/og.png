@@ -4,41 +4,12 @@
     <meta charset="UTF-8" />
     <link rel="icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tanke — Gasolineras baratas en Canarias y España</title>
     <meta
       name="description"
-      content="Compara gasolineras baratas en Canarias y toda España. Precios en tiempo real de gasolina 95, 98 y diésel. Ahorra en cada depósito con Tanke."
+      content="Encuentra las gasolineras más baratas en Canarias y península en tiempo real con Tanke. Ahorra en cada depósito."
     />
-    <meta name="robots" content="index,follow,max-image-preview:large" />
-    <meta name="keywords" content="gasolineras baratas, precio gasolina, diésel barato, Canarias, Tenerife, Las Palmas, gasolina 95, ahorrar gasolina" />
-    <meta name="author" content="Tanke" />
-    <meta name="theme-color" content="#0f172a" />
-    <link rel="canonical" href="https://tanke.javistudio.dev/" />
-
-    <meta property="og:type" content="website" />
-    <meta property="og:locale" content="es_ES" />
-    <meta property="og:site_name" content="Tanke" />
-    <meta property="og:title" content="Tanke — Gasolineras baratas en Canarias y España" />
-    <meta
-      property="og:description"
-      content="Compara precios de gasolina y diésel en tiempo real. Encuentra la gasolinera más barata cerca de ti."
-    />
-    <meta property="og:url" content="https://tanke.javistudio.dev/" />
-    <meta property="og:image" content="https://tanke.javistudio.dev/og.png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Tanke — comparador de gasolineras baratas" />
-
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Tanke — Gasolineras baratas en Canarias y España" />
-    <meta
-      name="twitter:description"
-      content="Precios en tiempo real de gasolina y diésel. Ahorra en cada depósito."
-    />
-    <meta name="twitter:image" content="https://tanke.javistudio.dev/og.png" />
 
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="Tanke" />
     <meta
       name="apple-mobile-web-app-status-bar-style"
       content="black-translucent"
@@ -89,78 +60,24 @@
 <link rel="apple-touch-startup-image" media="screen and (device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="splash_screens/8.3__iPad_Mini_portrait.png">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
-    <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@graph": [
-          {
-            "@type": "WebSite",
-            "name": "Tanke",
-            "url": "https://tanke.javistudio.dev/",
-            "description": "Comparador de gasolineras baratas en Canarias y España con precios en tiempo real.",
-            "inLanguage": "es-ES",
-            "potentialAction": {
-              "@type": "SearchAction",
-              "target": "https://tanke.javistudio.dev/?provincia={search_term_string}",
-              "query-input": "required name=search_term_string"
-            }
-          },
-          {
-            "@type": "WebApplication",
-            "name": "Tanke",
-            "url": "https://tanke.javistudio.dev/",
-            "applicationCategory": "UtilitiesApplication",
-            "operatingSystem": "Web",
-            "offers": {
-              "@type": "Offer",
-              "price": "0",
-              "priceCurrency": "EUR"
-            },
-            "description": "App gratuita para encontrar las gasolineras más baratas según provincia, GPS y tipo de combustible."
-          },
-          {
-            "@type": "Organization",
-            "name": "Tanke",
-            "url": "https://tanke.javistudio.dev/",
-            "logo": "https://tanke.javistudio.dev/pwa-512x512.png"
-          }
-        ]
-      }
-    </script>
+    <title>Tanke - Ahorra gasolina en Canarias</title>
 
     <style>
       body {
         margin: 0;
         padding: 0;
-        background-color: #0f172a;
+        background-color: #0f172a; /* El color de tu theme */
         color: white;
-        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        font-family: sans-serif;
       }
       #root {
         background-color: #0f172a;
         min-height: 100vh;
       }
-      .seo-crawl {
-        max-width: 56rem;
-        margin: 0 auto;
-        padding: 2rem 1.25rem 3rem;
-        color: #94a3b8;
-        font-size: 0.95rem;
-        line-height: 1.6;
-      }
-      .seo-crawl h2 {
-        color: #e2e8f0;
-        font-size: 1.1rem;
-        margin: 1.5rem 0 0.5rem;
-      }
-      .seo-crawl a {
-        color: #818cf8;
-      }
-      .seo-crawl ul {
-        padding-left: 1.2rem;
-      }
     </style>
-  </head>
+    <script type="module" crossorigin src="/assets/index-DzDjKNZw.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DUdUYiw_.css">
+  <link rel="manifest" href="/manifest.webmanifest"></head>
   <body>
     <div id="root">
       <div
@@ -171,35 +88,8 @@
           height: 100vh;
         "
       >
-        <h1 style="font-family: sans-serif; opacity: 0.5; font-size: 1.5rem">
-          Tanke — cargando gasolineras baratas…
-        </h1>
+        <h1 style="font-family: sans-serif; opacity: 0.5">Tanke...</h1>
       </div>
     </div>
-
-    <section class="seo-crawl" aria-label="Información sobre Tanke">
-      <h2>Comparador de gasolineras baratas en España</h2>
-      <p>
-        Tanke te ayuda a encontrar la gasolinera más barata cerca de ti con
-        datos oficiales del Ministerio de Industria. Consulta precios de
-        gasolina 95, gasolina 98, diésel y GLP en Canarias y en toda la
-        península, ordena por precio o distancia y calcula el ahorro según los
-        litros de tu depósito.
-      </p>
-      <h2>Precios por provincia e isla</h2>
-      <ul>
-        <li><a href="/gasolineras/las-palmas">Gasolineras baratas en Las Palmas / Gran Canaria</a></li>
-        <li><a href="/gasolineras/santa-cruz-de-tenerife">Gasolineras baratas en Tenerife</a></li>
-        <li><a href="/gasolineras/madrid">Gasolineras baratas en Madrid</a></li>
-        <li><a href="/gasolineras/barcelona">Gasolineras baratas en Barcelona</a></li>
-        <li><a href="/gasolineras/valencia">Gasolineras baratas en Valencia</a></li>
-        <li><a href="/gasolineras/sevilla">Gasolineras baratas en Sevilla</a></li>
-        <li><a href="/precios/gasolina-95">Precio gasolina 95 hoy</a></li>
-        <li><a href="/precios/diesel">Precio diésel hoy</a></li>
-        <li><a href="/guia/ahorrar-gasolina">Guía: cómo ahorrar gasolina</a></li>
-      </ul>
-    </section>
-
-    <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

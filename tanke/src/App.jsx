@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { getAllGasStations } from "./services/gasStations";
+import {
+  fuelSortBySlug,
+  resolveProvinceSlug,
+  slugify,
+} from "./data/seo";
 
 // IMPORTACIONES DEL MAPA
 import {
@@ -234,19 +239,29 @@ const PriceTag = React.memo(({ label, price, highlight, currentAverage }) => {
   );
 });
 
+function readInitialProvince() {
+  const params = new URLSearchParams(window.location.search);
+  const fromUrl = resolveProvinceSlug(params.get("provincia"), provinceIds);
+  if (fromUrl) return fromUrl;
+  const saved = localStorage.getItem("tanke_province");
+  if (saved === "Toda España") return "Toda España";
+  return provinceIds[saved] ? saved : "Las Palmas";
+}
+
+function readInitialSort() {
+  const params = new URLSearchParams(window.location.search);
+  const fuel = params.get("combustible");
+  if (fuel && fuelSortBySlug[fuel]) return fuelSortBySlug[fuel];
+  return localStorage.getItem("tanke_sort") || "gas95Asc";
+}
+
 function App() {
-  const [selectedProvince, setSelectedProvince] = useState(() => {
-    const saved = localStorage.getItem("tanke_province");
-    if (saved === "Toda España") return "Toda España";
-    return provinceIds[saved] ? saved : "Las Palmas";
-  });
+  const [selectedProvince, setSelectedProvince] = useState(readInitialProvince);
 
   const [selectedMunicipality, setSelectedMunicipality] = useState(
     () => localStorage.getItem("tanke_municipality") || "",
   );
-  const [sortType, setSortType] = useState(
-    () => localStorage.getItem("tanke_sort") || "gas95Asc",
-  );
+  const [sortType, setSortType] = useState(readInitialSort);
   const [tankSize, setTankSize] = useState(
     () => Number(localStorage.getItem("tanke_liters")) || 0,
   );
@@ -305,9 +320,27 @@ function App() {
   };
 
   useEffect(() => {
-    const idToLoad = selectedProvince === "Toda España" ? "all" : provinceIds[selectedProvince];
+    const idToLoad =
+      selectedProvince === "Toda España"
+        ? "all"
+        : provinceIds[selectedProvince];
     loadProvinceData(idToLoad || "35");
+    // Deep-link inicial: persistir provincia de la URL
+    if (selectedProvince && selectedProvince !== "Toda España") {
+      localStorage.setItem("tanke_province", selectedProvince);
+    }
   }, []);
+
+  useEffect(() => {
+    const place =
+      selectedProvince === "Toda España" ? "España" : selectedProvince;
+    const title = `Tanke — Gasolineras baratas en ${place}`;
+    document.title = title;
+
+    const desc = `Compara precios de gasolina y diésel en ${place} en tiempo real. Encuentra la gasolinera más barata cerca de ti con Tanke.`;
+    const descEl = document.querySelector('meta[name="description"]');
+    if (descEl) descEl.setAttribute("content", desc);
+  }, [selectedProvince]);
 
   const handleProvinceChange = (e) => {
     const provinceName = e.target.value;
@@ -316,8 +349,17 @@ function App() {
     setSelectedMunicipality("");
     localStorage.removeItem("tanke_municipality");
     setSearchTerm("");
-    const id = provinceName === "Toda España" ? "all" : provinceIds[provinceName];
+    const id =
+      provinceName === "Toda España" ? "all" : provinceIds[provinceName];
     if (id) loadProvinceData(id);
+
+    const url = new URL(window.location.href);
+    if (provinceName === "Toda España") {
+      url.searchParams.delete("provincia");
+    } else {
+      url.searchParams.set("provincia", slugify(provinceName));
+    }
+    window.history.replaceState({}, "", url);
   };
 
   const municipalityList = [
@@ -453,7 +495,7 @@ function App() {
         <div className="absolute inset-0 z-0">
           <img
             src="https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?q=80&w=2670&auto=format&fit=crop"
-            alt="Hero"
+            alt="Coche en carretera — busca gasolineras baratas con Tanke"
             className="w-full h-full object-cover opacity-80"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-slate-900/90 via-slate-900/50 to-slate-900/90"></div>
@@ -470,9 +512,9 @@ function App() {
             Tanke<span className="text-indigo-500">.</span>
           </h1>
           <p className="text-slate-300 text-sm md:text-base font-medium max-w-lg mx-auto drop-shadow-md">
-            Tu buscador de ahorro en{" "}
-            <span className="text-white font-bold">Canarias 🇮🇨</span> y
-            península.
+            Gasolineras más baratas en{" "}
+            <span className="text-white font-bold">Canarias</span> y toda
+            España. Precios en tiempo real de gasolina 95, 98 y diésel.
           </p>
         </div>
       </div>
