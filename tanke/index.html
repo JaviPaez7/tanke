@@ -12,7 +12,7 @@
     <meta name="robots" content="index,follow,max-image-preview:large" />
     <meta name="keywords" content="gasolineras baratas, precio gasolina, diésel barato, Canarias, Tenerife, Las Palmas, gasolina 95, ahorrar gasolina" />
     <meta name="author" content="Tanke" />
-    <meta name="theme-color" content="#0f172a" />
+    <meta name="theme-color" content="#f6f7fb" />
     <link rel="canonical" href="https://tanke.javistudio.dev/" />
 
     <meta property="og:type" content="website" />
@@ -132,32 +132,43 @@
       body {
         margin: 0;
         padding: 0;
-        background-color: #0f172a;
-        color: white;
-        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background-color: #f6f7fb;
+        color: #0f172a;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
       }
       #root {
-        background-color: #0f172a;
+        background-color: #f6f7fb;
         min-height: 100vh;
       }
       .seo-crawl {
-        max-width: 56rem;
+        max-width: 1280px;
         margin: 0 auto;
-        padding: 2rem 1.25rem 3rem;
-        color: #94a3b8;
+        padding: 2.5rem 1.25rem 4rem;
+        color: #64748b;
         font-size: 0.95rem;
-        line-height: 1.6;
+        line-height: 1.65;
+        border-top: 1px solid #e2e8f0;
+        background: #ffffff;
       }
       .seo-crawl h2 {
-        color: #e2e8f0;
-        font-size: 1.1rem;
-        margin: 1.5rem 0 0.5rem;
+        color: #0f172a;
+        font-size: 1.15rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin: 1.75rem 0 0.6rem;
       }
       .seo-crawl a {
-        color: #818cf8;
+        color: #4f46e5;
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .seo-crawl a:hover {
+        text-decoration: underline;
       }
       .seo-crawl ul {
         padding-left: 1.2rem;
+        display: grid;
+        gap: 0.35rem;
       }
     </style>
   </head>
@@ -171,20 +182,19 @@
           height: 100vh;
         "
       >
-        <h1 style="font-family: sans-serif; opacity: 0.5; font-size: 1.5rem">
+        <h1 style="font-family: Inter, system-ui, sans-serif; color:#64748b; font-size: 1.25rem; font-weight: 800;">
           Tanke — cargando gasolineras baratas…
         </h1>
       </div>
     </div>
 
-    <section class="seo-crawl" aria-label="Información sobre Tanke">
-      <h2>Comparador de gasolineras baratas en España</h2>
+    <section class="seo-crawl" aria-label="Cómo funciona Tanke">
+      <h2>Cómo funciona Tanke</h2>
       <p>
-        Tanke te ayuda a encontrar la gasolinera más barata cerca de ti con
-        datos oficiales del Ministerio de Industria. Consulta precios de
-        gasolina 95, gasolina 98, diésel y GLP en Canarias y en toda la
-        península, ordena por precio o distancia y calcula el ahorro según los
-        litros de tu depósito.
+        Tanke es un comparador de gasolineras baratas con datos oficiales del
+        Ministerio de Industria. Filtra por provincia o GPS, ordena por gasolina
+        95, 98, diésel, GLP o GNC y simula el coste de tu depósito para ver el
+        ahorro real.
       </p>
       <h2>Precios por provincia e isla</h2>
       <ul>

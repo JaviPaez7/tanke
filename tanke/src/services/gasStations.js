@@ -1,13 +1,10 @@
 import axios from "axios";
 
-// En local usa el proxy de Vite; en producción llama directo a la serverless de Vercel
 const API_URL = "/api/gas";
 
 export const getAllGasStations = async (provinceId = "35") => {
   try {
     const response = await axios.get(`${API_URL}?id=${provinceId}`);
-
-    // ... (el resto del código déjalo igual)
     const rawData = response.data.ListaEESSPrecio || response.data;
     if (!Array.isArray(rawData)) return [];
 
