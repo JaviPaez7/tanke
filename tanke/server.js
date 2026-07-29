@@ -1,5 +1,4 @@
-// Servidor de produccion: sirve el dist/ estatico y replica api/gas.js
-// (funcion serverless de Vercel) para el self-host en VPS.
+// Servidor de produccion: sirve el dist/ estatico y proxy /api/gas al Ministerio.
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';

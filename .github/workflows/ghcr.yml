@@ -55,7 +55,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          # El proyecto vive anidado en tanke/ (el repo tiene ademas vercel.json).
+          # El proyecto vive anidado en tanke/.
           context: ./tanke
           push: true
           tags: ${{ steps.meta.outputs.tags }}

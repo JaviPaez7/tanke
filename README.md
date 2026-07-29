@@ -2,7 +2,7 @@
 
 Encuentra las gasolineras más baratas de España según combustible, depósito y ubicación. Datos oficiales del Ministerio de Industria.
 
-**En vivo:** [tanke.javistudio.dev](https://tanke.javistudio.dev) · [tanke-seven.vercel.app](https://tanke-seven.vercel.app/)
+**En vivo:** [tanke.javistudio.dev](https://tanke.javistudio.dev)
 
 ## Características
 
@@ -19,9 +19,9 @@ Encuentra las gasolineras más baratas de España según combustible, depósito 
 | Capa | Tecnología |
 |------|------------|
 | Frontend | React 19 · Vite 7 · Tailwind CSS 4 · Leaflet |
-| Proxy API | Vercel serverless (`api/gas.js`) o Express (`server.js`) |
+| Proxy API | Express (`server.js`) en Docker |
 | Datos | API pública de carburantes (Ministerio) |
-| Infra | Vercel y/o Docker + Traefik · GHCR |
+| Infra | Docker · Traefik · GHCR · VPS Hetzner |
 
 La app vive en la carpeta [`tanke/`](./tanke/). El proxy evita CORS y el bloqueo 403 del origen gubernamental (headers de navegador en servidor).
 
@@ -43,7 +43,6 @@ npm run lint
 
 ## Despliegue
 
-- **Vercel:** `vercel.json` en la raíz del repo + función `tanke/api/gas.js`
 - **Docker / VPS:** `tanke/Dockerfile` (Express en `:3002`) + `docker-compose.yml` → `tanke.javistudio.dev`
 - **CI:** GitHub Actions construye la imagen GHCR y despliega en el VPS
 

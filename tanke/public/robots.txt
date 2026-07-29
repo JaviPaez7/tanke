@@ -1,6 +1,4 @@
-# Permitir que todos los buscadores rastreen la web
 User-agent: *
 Allow: /
 
-# Si tienes un sitemap en el futuro, se pone aquí
-# Sitemap: https://tanke-seven.vercel.app/sitemap.xml
+Sitemap: https://tanke.javistudio.dev/sitemap.xml
