@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { getAllGasStations } from "./services/gasStations";
 import {
   fuelSortBySlug,
@@ -309,14 +309,13 @@ function App() {
   );
 
   const [viewMode, setViewMode] = useState("list");
-  const [stations, setStations] = useState([]);
+  // `stations` y `currentAverage` ya no son estado: se derivan más abajo.
   const [allStationsInProvince, setAllStationsInProvince] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [userLocation, setUserLocation] = useState(null);
   const [geoError, setGeoError] = useState(null);
-  const [currentAverage, setCurrentAverage] = useState(0);
   const [gpsSort, setGpsSort] = useState("price");
   const [searchRadius, setSearchRadius] = useState(
     () => Number(localStorage.getItem("tanke_radius")) || 20,
@@ -340,37 +339,49 @@ function App() {
     localStorage.setItem("tanke_dark", isDark);
   }, [isDark]);
 
+  // Contador de peticiones: si el usuario cambia de provincia rápido, la
+  // respuesta que llega tarde debe descartarse en vez de pisar a la nueva.
+  const lastRequestRef = useRef(0);
+
   const loadProvinceData = async (id) => {
+    const requestId = ++lastRequestRef.current;
     setLoading(true);
     setErrorMsg("");
     try {
       const data = await getAllGasStations(id);
+      if (requestId !== lastRequestRef.current) return; // obsoleta
       if (!data || data.length === 0) {
         setErrorMsg("No hay datos disponibles o falló la conexión.");
         setAllStationsInProvince([]);
-        setStations([]);
       } else {
         const sortedData = [...data].sort((a, b) => a.price95 - b.price95);
         setAllStationsInProvince(sortedData);
-        setStations(sortedData);
       }
     } catch (err) {
       console.error(err);
+      if (requestId !== lastRequestRef.current) return;
       setErrorMsg("Error cargando datos.");
     }
-    setLoading(false);
+    if (requestId === lastRequestRef.current) setLoading(false);
   };
 
+  // Carga inicial. Deps vacías a propósito: la provincia de arranque sale de la
+  // URL o de localStorage, y los cambios posteriores los dispara
+  // handleProvinceChange. La descarga va dentro de una función async para no
+  // llamar a setState de forma sincrona en el cuerpo del efecto.
   useEffect(() => {
-    const idToLoad =
-      selectedProvince === "Toda España"
-        ? "all"
-        : provinceIds[selectedProvince];
-    loadProvinceData(idToLoad || "35");
+    (async () => {
+      const idToLoad =
+        selectedProvince === "Toda España"
+          ? "all"
+          : provinceIds[selectedProvince];
+      await loadProvinceData(idToLoad || "35");
+    })();
     // Deep-link inicial: persistir provincia de la URL
     if (selectedProvince && selectedProvince !== "Toda España") {
       localStorage.setItem("tanke_province", selectedProvince);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -408,8 +419,15 @@ function App() {
     ...new Set(allStationsInProvince.map((s) => s.municipality)),
   ].sort();
 
-  useEffect(() => {
-    if (allStationsInProvince.length === 0) return;
+  // La lista visible y la media son DATOS DERIVADOS de la provincia cargada más
+  // los filtros: no hay nada que sincronizar con el exterior. Con useEffect +
+  // setState React renderizaba dos veces por cada cambio de filtro (y se veía un
+  // instante la lista con el orden anterior). Con useMemo se calcula en el mismo
+  // render.
+  const { stations, currentAverage } = useMemo(() => {
+    if (allStationsInProvince.length === 0) {
+      return { stations: [], currentAverage: 0 };
+    }
     let result = [...allStationsInProvince];
 
     if (searchTerm) {
@@ -482,8 +500,7 @@ function App() {
         ? validPrices.reduce((a, b) => a + b, 0) / validPrices.length
         : 0;
 
-    setCurrentAverage(avg);
-    setStations(result);
+    return { stations: result, currentAverage: avg };
   }, [
     selectedMunicipality,
     sortType,
@@ -498,7 +515,9 @@ function App() {
     setLoading(true);
     setGeoError(null);
     if (!navigator.geolocation) {
-      setGeoError("Navegador incompatible");
+      setGeoError(
+        "Tu navegador no soporta geolocalización. Elige tu provincia abajo.",
+      );
       setLoading(false);
       return;
     }
@@ -515,7 +534,16 @@ function App() {
       },
       (error) => {
         console.error(error);
-        setGeoError("Error GPS");
+        // Mensajes por causa: "Error GPS" no le dice al usuario qué hacer.
+        const porCodigo = {
+          1: "No nos has dado permiso de ubicación. Puedes activarlo en los ajustes del navegador o elegir tu provincia abajo.",
+          2: "No hemos podido determinar tu posición. Comprueba que el GPS esté activado o elige tu provincia abajo.",
+          3: "La ubicación ha tardado demasiado. Inténtalo de nuevo o elige tu provincia abajo.",
+        };
+        setGeoError(
+          porCodigo[error.code] ||
+            "No hemos podido obtener tu ubicación. Elige tu provincia abajo.",
+        );
         setLoading(false);
       },
     );
@@ -752,12 +780,33 @@ function App() {
             </div>
           )}
 
+          {/* AVISO DE GPS: antes geoError se guardaba pero no se mostraba, así
+              que al denegar el permiso no pasaba nada visible. */}
+          {geoError && !userLocation && (
+            <div
+              role="status"
+              className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-800 dark:text-amber-200"
+            >
+              <MapPinIcon className="w-4 h-4 shrink-0 mt-0.5" />
+              <span className="flex-1">{geoError}</span>
+              <button
+                onClick={() => setGeoError(null)}
+                aria-label="Cerrar aviso"
+                className="shrink-0 p-0.5 rounded hover:bg-amber-100 dark:hover:bg-amber-800/40 transition-colors"
+              >
+                <XIcon className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           {/* FILTROS COMBUSTIBLE */}
           <div className="mt-5 pt-5 border-t border-slate-100 dark:border-slate-800">
             <span className="block text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 mb-2">
               Combustible
             </span>
-            <div className="flex overflow-x-auto pb-1 gap-2 scrollbar-hide">
+            {/* flex-wrap, no scroll horizontal: con cinco opciones caben en dos
+                líneas y no hay contenido oculto sin indicarlo. */}
+            <div className="flex flex-wrap gap-2">
               {[
               { id: "gas95Asc", label: "Gasolina 95" },
               { id: "gas98Asc", label: "98" },

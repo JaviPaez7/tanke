@@ -128,36 +128,162 @@
       }
     </script>
 
+    <script>
+      // Aplica el tema guardado ANTES de pintar. Hace dos cosas: evita el
+      // destello oscuro que veían los usuarios en modo claro, y permite que el
+      // footer estatico (vive fuera de React) siga el tema con CSS.
+      // El valor por defecto es claro, igual que en App.jsx.
+      (function () {
+        try {
+          var dark = localStorage.getItem("tanke_dark") === "true";
+          document.documentElement.classList.add(dark ? "dark" : "light");
+        } catch (e) {
+          document.documentElement.classList.add("light");
+        }
+      })();
+    </script>
     <style>
+      /* ---- base, sensible al tema ---------------------------------------- */
+      html {
+        color-scheme: light;
+      }
+      html.dark {
+        color-scheme: dark;
+      }
       body {
         margin: 0;
         padding: 0;
-        background-color: #0f172a;
-        color: white;
+        background-color: #f8fafc;
+        color: #1e293b;
         font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
       }
-      #root {
+      html.dark body {
         background-color: #0f172a;
+        color: #f1f5f9;
+      }
+      /* Que el fondo del body se vea: la app pinta el suyo dentro. */
+      #root {
+        background-color: transparent;
         min-height: 100vh;
       }
-      .seo-crawl {
-        max-width: 56rem;
-        margin: 0 auto;
-        padding: 2rem 1.25rem 3rem;
+
+      /* ---- footer -------------------------------------------------------- */
+      .site-footer {
+        border-top: 1px solid #e2e8f0;
+        background-color: #f1f5f9;
+        font-size: 0.9rem;
+        line-height: 1.65;
+        color: #475569;
+      }
+      html.dark .site-footer {
+        border-top-color: #1e293b;
+        background-color: #0b1220;
         color: #94a3b8;
-        font-size: 0.95rem;
-        line-height: 1.6;
       }
-      .seo-crawl h2 {
-        color: #e2e8f0;
-        font-size: 1.1rem;
-        margin: 1.5rem 0 0.5rem;
+      .site-footer__inner {
+        max-width: 72rem;
+        margin: 0 auto;
+        padding: 3rem 1.5rem 2rem;
       }
-      .seo-crawl a {
+      .site-footer__intro {
+        max-width: 62ch;
+        margin-bottom: 2.5rem;
+      }
+      .site-footer__brand {
+        font-size: 1.6rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        color: #0f172a;
+        margin: 0 0 0.6rem;
+      }
+      html.dark .site-footer__brand {
+        color: #f8fafc;
+      }
+      .site-footer__brand span {
+        color: #4f46e5;
+      }
+      html.dark .site-footer__brand span {
         color: #818cf8;
       }
-      .seo-crawl ul {
-        padding-left: 1.2rem;
+      .site-footer h2 {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0 0 0.5rem;
+      }
+      html.dark .site-footer h2 {
+        color: #e2e8f0;
+      }
+      .site-footer__intro p {
+        margin: 0;
+      }
+      .site-footer h3 {
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: #64748b;
+        margin: 0 0 0.9rem;
+      }
+      html.dark .site-footer h3 {
+        color: #726f8b;
+      }
+      .site-footer__cols-title {
+        margin-bottom: 1.5rem;
+      }
+      .site-footer__cols {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 2rem;
+      }
+      @media (max-width: 640px) {
+        .site-footer__cols {
+          grid-template-columns: 1fr;
+          gap: 2rem;
+        }
+        .site-footer__inner {
+          padding: 2.5rem 1.25rem 1.5rem;
+        }
+      }
+      .site-footer ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 0.55rem;
+      }
+      .site-footer a {
+        color: #4338ca;
+        text-decoration: none;
+        border-radius: 4px;
+      }
+      html.dark .site-footer a {
+        color: #a5b4fc;
+      }
+      .site-footer a:hover {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      .site-footer a:focus-visible {
+        outline: 2px solid #4f46e5;
+        outline-offset: 3px;
+      }
+      html.dark .site-footer a:focus-visible {
+        outline-color: #818cf8;
+      }
+      .site-footer__legal {
+        margin-top: 2.5rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid #e2e8f0;
+        font-size: 0.8rem;
+        color: #64748b;
+      }
+      html.dark .site-footer__legal {
+        border-top-color: #1e293b;
+        color: #726f8b;
+      }
+      .site-footer__legal p {
+        margin: 0;
       }
     </style>
   </head>
@@ -177,28 +303,57 @@
       </div>
     </div>
 
-    <section class="seo-crawl" aria-label="Información sobre Tanke">
-      <h2>Comparador de gasolineras baratas en España</h2>
-      <p>
-        Tanke te ayuda a encontrar la gasolinera más barata cerca de ti con
-        datos oficiales del Ministerio de Industria. Consulta precios de
-        gasolina 95, gasolina 98, diésel y GLP en Canarias y en toda la
-        península, ordena por precio o distancia y calcula el ahorro según los
-        litros de tu depósito.
-      </p>
-      <h2>Precios por provincia e isla</h2>
-      <ul>
-        <li><a href="/gasolineras/las-palmas">Gasolineras baratas en Las Palmas / Gran Canaria</a></li>
-        <li><a href="/gasolineras/santa-cruz-de-tenerife">Gasolineras baratas en Tenerife</a></li>
-        <li><a href="/gasolineras/madrid">Gasolineras baratas en Madrid</a></li>
-        <li><a href="/gasolineras/barcelona">Gasolineras baratas en Barcelona</a></li>
-        <li><a href="/gasolineras/valencia">Gasolineras baratas en Valencia</a></li>
-        <li><a href="/gasolineras/sevilla">Gasolineras baratas en Sevilla</a></li>
-        <li><a href="/precios/gasolina-95">Precio gasolina 95 hoy</a></li>
-        <li><a href="/precios/diesel">Precio diésel hoy</a></li>
-        <li><a href="/guia/ahorrar-gasolina">Guía: cómo ahorrar gasolina</a></li>
-      </ul>
-    </section>
+    <footer class="site-footer">
+      <div class="site-footer__inner">
+        <div class="site-footer__intro">
+          <p class="site-footer__brand">Tanke<span>.</span></p>
+          <h2>Comparador de gasolineras baratas en España</h2>
+          <p>
+            Tanke te ayuda a encontrar la gasolinera más barata cerca de ti con
+            datos oficiales del Ministerio de Industria. Consulta precios de
+            gasolina 95, gasolina 98, diésel y GLP en Canarias y en toda la
+            península, ordena por precio o distancia y calcula el ahorro según
+            los litros de tu depósito.
+          </p>
+        </div>
+
+        <h2 class="site-footer__cols-title">Precios por provincia e isla</h2>
+        <nav class="site-footer__cols" aria-label="Precios por provincia e isla">
+          <div>
+            <h3>Canarias</h3>
+            <ul>
+              <li><a href="/gasolineras/las-palmas">Gasolineras baratas en Las Palmas / Gran Canaria</a></li>
+              <li><a href="/gasolineras/santa-cruz-de-tenerife">Gasolineras baratas en Tenerife</a></li>
+            </ul>
+          </div>
+          <div>
+            <h3>Península</h3>
+            <ul>
+              <li><a href="/gasolineras/madrid">Gasolineras baratas en Madrid</a></li>
+              <li><a href="/gasolineras/barcelona">Gasolineras baratas en Barcelona</a></li>
+              <li><a href="/gasolineras/valencia">Gasolineras baratas en Valencia</a></li>
+              <li><a href="/gasolineras/sevilla">Gasolineras baratas en Sevilla</a></li>
+            </ul>
+          </div>
+          <div>
+            <h3>Precios y guías</h3>
+            <ul>
+              <li><a href="/precios/gasolina-95">Precio gasolina 95 hoy</a></li>
+              <li><a href="/precios/diesel">Precio diésel hoy</a></li>
+              <li><a href="/guia/ahorrar-gasolina">Guía: cómo ahorrar gasolina</a></li>
+            </ul>
+          </div>
+        </nav>
+
+        <div class="site-footer__legal">
+          <p>
+            Precios oficiales del Ministerio para la Transición Ecológica y el
+            Reto Demográfico. Los datos pueden variar respecto al surtidor;
+            confirma siempre el precio en la estación.
+          </p>
+        </div>
+      </div>
+    </footer>
 
     <script type="module" src="/src/main.jsx"></script>
   </body>

@@ -15,9 +15,16 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
+// Formato español: coma decimal. toFixed() devuelve punto, que en español se
+// lee como separador de millares ("1.413 €" = mil cuatrocientos trece euros).
+const priceFormat = new Intl.NumberFormat("es-ES", {
+  minimumFractionDigits: 3,
+  maximumFractionDigits: 3,
+});
+
 function formatPrice(n) {
   if (!n || n <= 0) return "—";
-  return `${n.toFixed(3)} €`;
+  return `${priceFormat.format(n)} €`;
 }
 
 const baseStyles = `
