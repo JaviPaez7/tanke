@@ -304,11 +304,20 @@ function App() {
     () => localStorage.getItem("tanke_municipality") || "",
   );
   const [sortType, setSortType] = useState(readInitialSort);
-  const [tankSize, setTankSize] = useState(
-    () => Number(localStorage.getItem("tanke_liters")) || 0,
-  );
+  // 50 L por defecto (depósito típico). Antes arrancaba en 0 = desactivado, así
+  // que la insignia "Ahorras" —el argumento diferencial de la app— no se veía
+  // hasta mover un slider que nadie sabía que había que mover. Se respeta el
+  // valor guardado, incluido el 0 de quien lo desactivó a propósito.
+  const [tankSize, setTankSize] = useState(() => {
+    const saved = localStorage.getItem("tanke_liters");
+    return saved === null ? 50 : Number(saved) || 0;
+  });
 
   const [viewMode, setViewMode] = useState("list");
+  // Cuántas tarjetas se muestran. Antes la lista cortaba en 50 en silencio: en
+  // "Toda España" son más de 11.000 estaciones y nada indicaba que hubiera más.
+  const PAGE_SIZE = 50;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   // `stations` y `currentAverage` ya no son estado: se derivan más abajo.
   const [allStationsInProvince, setAllStationsInProvince] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -511,6 +520,20 @@ function App() {
     searchRadius,
   ]);
 
+  // Al cambiar cualquier filtro volvemos a la primera página: si no, quien había
+  // pulsado "Ver más" seguiría viendo 200 tarjetas de la búsqueda nueva.
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [
+    selectedMunicipality,
+    sortType,
+    userLocation,
+    allStationsInProvince,
+    searchTerm,
+    gpsSort,
+    searchRadius,
+  ]);
+
   const handleNearMe = () => {
     setLoading(true);
     setGeoError(null);
@@ -563,11 +586,31 @@ function App() {
       {/* HERO SECTION */}
       <div className="relative py-12 px-4 overflow-hidden shadow-2xl bg-slate-900 min-h-75 flex flex-col justify-center items-center">
         <div className="absolute inset-0 z-0">
-          <img
-            src="https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?q=80&w=2670&auto=format&fit=crop"
-            alt="Coche en carretera — busca gasolineras baratas con Tanke"
-            className="w-full h-full object-cover opacity-80"
-          />
+          {/* Antes era un JPEG de 939 KB servido desde Unsplash: un tercero en
+              la ruta crítica del LCP, a 2670 px de ancho incluso en móvil y sin
+              dimensiones declaradas, lo que aportaba CLS. Ahora autoalojada, en
+              AVIF con respaldo WebP y una variante por ancho. */}
+          <picture className="contents">
+            <source
+              type="image/avif"
+              sizes="100vw"
+              srcSet="/hero-640.avif 640w, /hero-960.avif 960w, /hero-1440.avif 1440w, /hero-1920.avif 1920w"
+            />
+            <source
+              type="image/webp"
+              sizes="100vw"
+              srcSet="/hero-640.webp 640w, /hero-960.webp 960w, /hero-1440.webp 1440w, /hero-1920.webp 1920w"
+            />
+            <img
+              src="/hero-1440.webp"
+              width="1440"
+              height="960"
+              fetchPriority="high"
+              decoding="async"
+              alt="Coche en carretera — busca gasolineras baratas con Tanke"
+              className="w-full h-full object-cover opacity-80"
+            />
+          </picture>
           {/* el velo central sube al 68% para que el wordmark no compita con los
               pilotos traseros del coche, que caen justo a su altura */}
           <div className="absolute inset-0 bg-gradient-to-b from-slate-900/90 via-slate-900/68 to-slate-900/90"></div>
@@ -895,8 +938,23 @@ function App() {
             </p>
           </div>
         ) : viewMode === "list" ? (
+          <>
+          {stations.length > 0 && (
+            <div className="flex items-baseline justify-between gap-3 mb-4 px-1">
+              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 tabular-nums">
+                Mostrando {Math.min(visibleCount, stations.length)} de{" "}
+                {numberFormat.format(stations.length)}{" "}
+                {stations.length === 1 ? "gasolinera" : "gasolineras"}
+              </p>
+              {currentAverage > 0 && (
+                <p className="text-xs text-slate-400 dark:text-slate-500 tabular-nums">
+                  Media: {formatPrice(currentAverage)}&nbsp;€
+                </p>
+              )}
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {stations.slice(0, 50).map((station) => {
+            {stations.slice(0, visibleCount).map((station) => {
               const price = getPriceForStation(station);
               const total = price * tankSize;
               const savings = (currentAverage - price) * tankSize;

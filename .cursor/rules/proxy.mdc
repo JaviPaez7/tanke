@@ -1,0 +1,13 @@
+---
+description: Proxy /api/gas y servidor Express de Tanke
+globs: tanke/server.js,tanke/vite.config.js,tanke/src/services/**/*
+alwaysApply: false
+---
+
+# Proxy Ministerio
+
+- Endpoint: `GET /api/gas?id=<codigo|all>`.
+- Dev: proxy Vite con rewrite a FiltroProvincia / listado completo.
+- Prod: `server.js` — User-Agent navegador, CORS `*`, cache `s-maxage=600`, timeout 15s.
+- SPA: Express sirve `dist/index.html` para rutas no-API.
+- No elimines el proxy ni el User-Agent; el origen gubernamental bloquea clientes bare.

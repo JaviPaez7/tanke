@@ -27,6 +27,15 @@ const app = express();
 const PORT = process.env.PORT || 3002;
 const distDir = path.join(__dirname, "dist");
 
+// Cache para HTML. Antes las landings iban con max-age=3600 y 86400, así que un
+// visitante que ya había estado seguía viendo la versión vieja hasta 24 h
+// después de desplegar. Con max-age=0 el navegador revalida siempre, y como ya
+// enviamos ETag la respuesta habitual es un 304 de unos pocos bytes. s-maxage
+// mantiene el alivio de carga en cachés compartidas y stale-while-revalidate
+// evita esperas mientras se refresca.
+const HTML_CACHE =
+  "public, max-age=0, must-revalidate, s-maxage=600, stale-while-revalidate=300";
+
 app.get("/api/gas", async (req, res) => {
   const id = req.query.id || "35";
   const GOV_URL_PROVINCE =
@@ -109,7 +118,7 @@ app.get("/gasolineras/:slug", async (req, res) => {
     });
     res
       .type("html")
-      .set("Cache-Control", "public, s-maxage=600, stale-while-revalidate=300")
+      .set("Cache-Control", HTML_CACHE)
       .send(html);
   } catch (error) {
     console.error("SEO landing error:", error.message);
@@ -121,7 +130,13 @@ app.get("/gasolineras/:slug", async (req, res) => {
       top95: [],
       topDiesel: [],
     });
-    res.type("html").status(200).send(html);
+    // Página degradada (la API del Ministerio falló): no la cacheamos, o una
+    // caída pasajera se quedaría servida durante minutos.
+    res
+      .type("html")
+      .status(200)
+      .set("Cache-Control", "no-store")
+      .send(html);
   }
 });
 
@@ -130,14 +145,14 @@ app.get("/precios/:slug", (req, res) => {
   if (!fuel) return res.status(404).send(notFoundHtml());
   res
     .type("html")
-    .set("Cache-Control", "public, max-age=3600")
+    .set("Cache-Control", HTML_CACHE)
     .send(renderFuelLanding(fuel));
 });
 
 app.get("/guia/ahorrar-gasolina", (_req, res) => {
   res
     .type("html")
-    .set("Cache-Control", "public, max-age=86400")
+    .set("Cache-Control", HTML_CACHE)
     .send(renderGuidePage());
 });
 

@@ -1,0 +1,12 @@
+---
+description: Docker, Traefik y GHCR de Tanke
+globs: Dockerfile*,docker-compose*,.github/workflows/**/*,tanke/Dockerfile
+alwaysApply: false
+---
+
+# Docker y deploy
+
+- Build context: `./tanke`. Imagen `ghcr.io/javipaez7/tanke`. Puerto **3002**.
+- Compose: Traefik Host `tanke.javistudio.dev`, red `public-edge`, `mem_limit: 128m`.
+- CI: push `main` → GHCR → SSH `gas-tracker <sha>`. Deploy dir `/opt/gas-tracker`.
+- No reintroducir `vercel.json` ni funciones serverless.

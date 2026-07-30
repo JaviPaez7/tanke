@@ -1,0 +1,12 @@
+---
+description: Estándares core de Tanke (React/Vite, español)
+alwaysApply: true
+---
+
+# Core
+
+- App en `tanke/`. React 19 + Vite. UI en **español**.
+- Fuente de verdad UI: `tanke/src/App.jsx` (ignora `save.jsx` salvo migración explícita).
+- Datos solo vía `/api/gas` — nunca fetch directo al Ministerio desde el browser.
+- Sin `.env` de aplicación. No reintroducir Vercel.
+- No hagas commit/push sin que el usuario lo pida.
