@@ -111,11 +111,10 @@ function layout({
     </header>
     ${body}
     <footer>
-      <p>Tanke compara precios oficiales de carburantes del Ministerio de Industria. Datos orientativos; verifica en estación.</p>
+      <p>Tanke compara precios oficiales de carburantes del Ministerio para la Transición Ecológica y el Reto Demográfico. Datos orientativos; verifica en estación.</p>
       <p style="margin-top:8px">
         <a href="/">App</a> ·
         <a href="/guia/ahorrar-gasolina">Guía de ahorro</a> ·
-        <a href="/sitemap.xml">Sitemap</a> ·
         <a href="https://javistudio.dev">JaviStudio</a>
       </p>
     </footer>
@@ -281,7 +280,7 @@ export function renderProvinceLanding({
           name: "¿Los precios están actualizados?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Tanke usa los datos abiertos de carburantes del Ministerio de Industria del Gobierno de España.",
+            text: "Tanke usa los datos abiertos de carburantes del Ministerio para la Transición Ecológica y el Reto Demográfico del Gobierno de España.",
           },
         },
       ],
@@ -381,7 +380,7 @@ export function renderGuidePage() {
       </details>
       <details>
         <summary>¿De dónde salen los datos?</summary>
-        <p>De la API pública de estaciones de servicio del Ministerio de Industria.</p>
+        <p>De la API pública de estaciones de servicio del Ministerio para la Transición Ecológica y el Reto Demográfico.</p>
       </details>
     </div>
     <div class="card">
@@ -418,7 +417,7 @@ export function renderGuidePage() {
           name: "¿De dónde salen los datos?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "De la API pública de estaciones de servicio del Ministerio de Industria.",
+            text: "De la API pública de estaciones de servicio del Ministerio para la Transición Ecológica y el Reto Demográfico.",
           },
         },
       ],
