@@ -5,6 +5,21 @@ import {
   resolveProvinceSlug,
   slugify,
 } from "./data/seo";
+import {
+  ArrowUpIcon,
+  ArrowUpRightIcon,
+  BroadcastIcon,
+  CrownIcon,
+  GasPumpIcon,
+  ListIcon,
+  MapIcon,
+  MapPinIcon,
+  MoonIcon,
+  SunIcon,
+  TagIcon,
+  XIcon,
+} from "./icons";
+import { ICON_PATHS } from "./iconPaths";
 
 // IMPORTACIONES DEL MAPA
 import {
@@ -87,6 +102,26 @@ const provinceIds = {
   Melilla: "52",
 };
 
+// FORMATO ESPAÑOL DE NÚMEROS
+// toFixed() siempre devuelve punto decimal ("1.244"), que en español se lee como
+// millares. Los precios de carburante se escriben con coma: 1,244 €/L.
+const priceFormat = new Intl.NumberFormat("es-ES", {
+  minimumFractionDigits: 3,
+  maximumFractionDigits: 3,
+});
+const eurFormat = new Intl.NumberFormat("es-ES", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+const kmFormat = new Intl.NumberFormat("es-ES", {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
+
+const formatPrice = (n) => priceFormat.format(n);
+const formatEur = (n) => eurFormat.format(n);
+const formatKm = (n) => kmFormat.format(n);
+
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371;
   const dLat = (lat2 - lat1) * (Math.PI / 180);
@@ -116,6 +151,7 @@ const brandLogos = {
   plenoil: "/plenergy.png",
   petroprix: "/petroprix.jpg",
   canary: "/canaryoil.webp",
+  santana: "/santana.webp",
   spl: "/spl.png",
   ballenoil: "/ballenoil.svg",
   alcampo: "/alcampo.jpg",
@@ -142,7 +178,13 @@ const createPriceIcon = (price, avg, isCheapest, stationName) => {
     className: "custom-price-marker",
     html: `
       <div class="flex flex-col items-center relative transition-transform hover:scale-110">
-        ${isCheapest ? '<span class="text-sm mb-[-5px] drop-shadow-md z-30">👑</span>' : ""}
+        ${
+          isCheapest
+            ? `<span class="mb-[-5px] drop-shadow-md z-30 text-yellow-400">
+                 <svg viewBox="0 0 256 256" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="${ICON_PATHS.crown}"/></svg>
+               </span>`
+            : ""
+        }
         
         ${
           logoUrl
@@ -155,7 +197,7 @@ const createPriceIcon = (price, avg, isCheapest, stationName) => {
         }
 
         <div class="${colorClass} text-white text-[10px] font-black px-1.5 py-0.5 rounded-lg shadow-lg border-2 border-white flex items-center justify-center whitespace-nowrap">
-          ${price > 0 ? price.toFixed(3) : "--"}€
+          ${price > 0 ? formatPrice(price) : "--"}&nbsp;€
         </div>
         <div class="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[6px] border-t-${isCheapest ? "yellow-500" : colorClass.split("-")[1] + "-600"}"></div>
       </div>
@@ -220,8 +262,8 @@ const PriceTag = React.memo(({ label, price, highlight, currentAverage }) => {
       <div className="flex items-baseline gap-0.5">
         {isAvailable ? (
           <>
-            <span className={`font-black text-lg ${textClass}`}>
-              {price.toFixed(3)}
+            <span className={`font-black text-lg tabular-nums ${textClass}`}>
+              {formatPrice(price)}
             </span>
             <span
               className={`text-[10px] font-medium ${isAvailable && highlight ? textClass : "text-slate-400 dark:text-slate-500"}`}
@@ -498,15 +540,41 @@ function App() {
             alt="Coche en carretera — busca gasolineras baratas con Tanke"
             className="w-full h-full object-cover opacity-80"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/90 via-slate-900/50 to-slate-900/90"></div>
+          {/* el velo central sube al 68% para que el wordmark no compita con los
+              pilotos traseros del coche, que caen justo a su altura */}
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/90 via-slate-900/68 to-slate-900/90"></div>
         </div>
         <div className="max-w-7xl mx-auto text-center relative z-10 w-full">
           <button
             onClick={() => setIsDark(!isDark)}
-            className="absolute -top-6 right-0 w-12 h-12 flex items-center justify-center bg-white/10 hover:bg-white/20 backdrop-blur-md text-white rounded-full transition-all border border-white/20 shadow-xl z-50 cursor-pointer hover:scale-110 active:scale-95"
+            role="switch"
+            aria-checked={isDark}
+            aria-label={
+              isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"
+            }
             title={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+            className="absolute -top-6 right-0 w-16 h-9 p-1 flex items-center bg-slate-900/50 hover:bg-slate-900/70 backdrop-blur-md rounded-full transition-colors border border-white/20 shadow-xl z-50 cursor-pointer"
           >
-            <span className="text-xl select-none">{isDark ? "☀️" : "🌙"}</span>
+            {/* pastilla que se desliza bajo el icono activo */}
+            <span
+              className={`absolute top-1 left-1 w-7 h-7 rounded-full bg-indigo-600 shadow-md transition-transform duration-200 ease-out motion-reduce:transition-none ${
+                isDark ? "translate-x-7" : "translate-x-0"
+              }`}
+            />
+            <span
+              className={`relative z-10 flex-1 flex items-center justify-center transition-colors ${
+                isDark ? "text-white/40" : "text-white"
+              }`}
+            >
+              <SunIcon className="w-4 h-4" />
+            </span>
+            <span
+              className={`relative z-10 flex-1 flex items-center justify-center transition-colors ${
+                isDark ? "text-white" : "text-white/40"
+              }`}
+            >
+              <MoonIcon className="w-4 h-4" />
+            </span>
           </button>
           <h1 className="text-5xl md:text-7xl font-black mb-2 tracking-tighter text-white drop-shadow-2xl">
             Tanke<span className="text-indigo-500">.</span>
@@ -522,23 +590,29 @@ function App() {
       <div className="max-w-7xl mx-auto px-4 -mt-8 relative z-20">
         <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-white/50 dark:border-slate-800 mb-8 p-4 md:p-6 transition-colors duration-300">
           {/* BARRA DE CONTROLES PRINCIPAL */}
-          <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center mb-4">
+          <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
             <div className="flex gap-2 w-full md:w-auto">
               {!userLocation ? (
                 <button
                   onClick={handleNearMe}
-                  className="flex-1 md:flex-none px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 dark:shadow-indigo-900/50 transition-all flex items-center justify-center gap-2 h-12"
+                  className="flex-1 md:flex-none px-6 whitespace-nowrap bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 dark:shadow-indigo-900/50 transition-all flex items-center justify-center gap-2 h-12"
                 >
-                  📍 Cerca de mí
+                  <MapPinIcon className="w-4 h-4 shrink-0" />
+                  Cerca de mí
                 </button>
               ) : (
                 <div className="flex items-center gap-2 bg-green-50 dark:bg-green-900/20 px-4 rounded-xl border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 font-bold text-sm h-12">
-                  <span>📡 GPS Activo</span>
+                  <span className="flex items-center gap-1.5">
+                    <BroadcastIcon className="w-4 h-4 shrink-0" />
+                    GPS activo
+                  </span>
                   <button
                     onClick={() => setUserLocation(null)}
-                    className="ml-2 w-6 h-6 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-xs shadow hover:bg-red-50 dark:hover:bg-red-900/50 transition-colors"
+                    aria-label="Desactivar GPS"
+                    title="Desactivar GPS"
+                    className="ml-2 w-6 h-6 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center shadow hover:bg-red-50 dark:hover:bg-red-900/50 transition-colors"
                   >
-                    ✕
+                    <XIcon className="w-3 h-3 shrink-0" />
                   </button>
                 </div>
               )}
@@ -546,30 +620,46 @@ function App() {
                 onClick={() =>
                   setViewMode(viewMode === "list" ? "map" : "list")
                 }
-                className={`px-6 rounded-xl font-bold transition-all flex items-center justify-center gap-2 h-12 ${
+                className={`px-6 whitespace-nowrap rounded-xl font-bold transition-all flex items-center justify-center gap-2 h-12 ${
                   viewMode === "map"
                     ? "bg-slate-800 dark:bg-indigo-600 text-white shadow-lg"
                     : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                 }`}
               >
-                {viewMode === "list" ? "🗺️ Ver Mapa" : "📋 Ver Lista"}
+                {viewMode === "list" ? (
+                  <>
+                    <MapIcon className="w-4 h-4 shrink-0" />
+                    Ver mapa
+                  </>
+                ) : (
+                  <>
+                    <ListIcon className="w-4 h-4 shrink-0" />
+                    Ver lista
+                  </>
+                )}
               </button>
             </div>
 
-            <div className="w-full md:w-64">
-              <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 block mb-2">
-                Simular Depósito:{" "}
+            <div className="w-full md:w-64 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-xl px-3 py-2.5">
+              <div className="flex items-baseline justify-between mb-2 gap-2">
+                <label
+                  htmlFor="tank-size"
+                  className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500"
+                >
+                  Simular depósito
+                </label>
                 <span
-                  className={
+                  className={`text-xs font-black tabular-nums ${
                     tankSize > 0
                       ? "text-indigo-600 dark:text-indigo-400"
-                      : "text-slate-400"
-                  }
+                      : "text-slate-400 dark:text-slate-500"
+                  }`}
                 >
-                  {tankSize > 0 ? `${tankSize}L` : "Desactivado"}
+                  {tankSize > 0 ? `${tankSize} L` : "Desactivado"}
                 </span>
-              </label>
+              </div>
               <input
+                id="tank-size"
                 type="range"
                 min="0"
                 max="100"
@@ -582,18 +672,23 @@ function App() {
                 }}
                 className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-600"
               />
+              <div className="flex justify-between mt-1.5 text-[9px] font-bold text-slate-400 dark:text-slate-500 tabular-nums">
+                <span>0 L</span>
+                <span>100 L</span>
+              </div>
             </div>
 
             <div className="w-full md:w-64 relative group">
               <input
                 type="text"
-                placeholder="🔎 Buscar gasolinera..."
+                placeholder="Buscar gasolinera..."
+                aria-label="Buscar gasolinera por nombre, municipio o dirección"
                 className="w-full px-4 pl-10 bg-slate-100 dark:bg-slate-800 border-transparent rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:bg-white dark:focus:bg-slate-700 focus:ring-2 focus:ring-indigo-500 transition h-12"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                ⛽
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                <GasPumpIcon className="w-4 h-4 shrink-0" />
               </span>
             </div>
           </div>
@@ -608,23 +703,25 @@ function App() {
                 <div className="flex bg-white dark:bg-slate-800 p-1 rounded-xl shadow-sm border border-indigo-50 dark:border-slate-700 w-full max-w-sm">
                   <button
                     onClick={() => setGpsSort("price")}
-                    className={`flex-1 px-4 py-2 text-xs md:text-sm font-bold rounded-lg transition-all ${
+                    className={`flex-1 px-4 py-2 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                       gpsSort === "price"
                         ? "bg-indigo-600 text-white shadow-md"
                         : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
                     }`}
                   >
-                    💰 Más baratas
+                    <TagIcon className="w-4 h-4 shrink-0" />
+                    Más baratas
                   </button>
                   <button
                     onClick={() => setGpsSort("distance")}
-                    className={`flex-1 px-4 py-2 text-xs md:text-sm font-bold rounded-lg transition-all ${
+                    className={`flex-1 px-4 py-2 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                       gpsSort === "distance"
                         ? "bg-red-500 text-white shadow-md"
                         : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
                     }`}
                   >
-                    📍 Más cercanas
+                    <MapPinIcon className="w-4 h-4 shrink-0" />
+                    Más cercanas
                   </button>
                 </div>
               </div>
@@ -656,8 +753,12 @@ function App() {
           )}
 
           {/* FILTROS COMBUSTIBLE */}
-          <div className="flex overflow-x-auto pb-2 gap-2 mb-4 scrollbar-hide">
-            {[
+          <div className="mt-5 pt-5 border-t border-slate-100 dark:border-slate-800">
+            <span className="block text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 mb-2">
+              Combustible
+            </span>
+            <div className="flex overflow-x-auto pb-1 gap-2 scrollbar-hide">
+              {[
               { id: "gas95Asc", label: "Gasolina 95" },
               { id: "gas98Asc", label: "98" },
               { id: "dieselAsc", label: "Diésel" },
@@ -676,47 +777,57 @@ function App() {
                     : "bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
                 }`}
               >
-                {btn.label}
-              </button>
-            ))}
+                  {btn.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* SELECTORES DE ZONA */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <select
-              className="p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500"
-              value={selectedProvince}
-              onChange={handleProvinceChange}
-            >
-              <option value="Toda España">🌍 Toda España</option>
-              {Object.keys(provinceIds)
-                .sort()
-                .map((p) => (
-                  <option key={p} value={p}>
-                    {p}
+          <div className="mt-5 pt-5 border-t border-slate-100 dark:border-slate-800">
+            <span className="block text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 mb-2">
+              Zona
+            </span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <select
+                aria-label="Provincia"
+                className="p-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500"
+                value={selectedProvince}
+                onChange={handleProvinceChange}
+              >
+                <option value="Toda España">🌍 Toda España</option>
+                {Object.keys(provinceIds)
+                  .sort()
+                  .map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+              </select>
+              <select
+                aria-label="Municipio"
+                className="p-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+                value={selectedMunicipality}
+                disabled={!selectedProvince}
+                onChange={(e) => {
+                  setSelectedMunicipality(e.target.value);
+                  localStorage.setItem("tanke_municipality", e.target.value);
+                }}
+              >
+                <option value="">Todos los municipios</option>
+                {municipalityList.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
                   </option>
                 ))}
-            </select>
-            <select
-              className="p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
-              value={selectedMunicipality}
-              disabled={!selectedProvince}
-              onChange={(e) => {
-                setSelectedMunicipality(e.target.value);
-                localStorage.setItem("tanke_municipality", e.target.value);
-              }}
-            >
-              <option value="">Todos los municipios</option>
-              {municipalityList.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
+              </select>
+            </div>
           </div>
         </div>
 
-        {errorMsg && (
+        {/* Solo avisamos si de verdad no hay nada que mostrar: si un fetch falló
+            pero otro trajo datos, el aviso contradecía a la lista de abajo. */}
+        {errorMsg && stations.length === 0 && (
           <div
             className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
             role="alert"
@@ -764,10 +875,16 @@ function App() {
                     )}
 
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-black text-slate-800 dark:text-white text-lg leading-tight truncate">
+                      <h3
+                        className="font-black text-slate-800 dark:text-white text-lg leading-tight truncate"
+                        title={station.name}
+                      >
                         {station.name}
                       </h3>
-                      <p className="text-xs text-slate-400 dark:text-slate-500 font-medium truncate">
+                      <p
+                        className="text-xs text-slate-400 dark:text-slate-500 font-medium truncate"
+                        title={station.address}
+                      >
                         {station.address}
                       </p>
                       <span className="text-[9px] font-bold uppercase bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-md inline-block mt-2">
@@ -776,31 +893,33 @@ function App() {
                     </div>
 
                     {station.distance !== undefined && (
-                      <div className="flex-shrink-0 bg-slate-900 dark:bg-slate-800 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg whitespace-nowrap self-start">
-                        📍 {station.distance.toFixed(1)} km
+                      <div className="flex-shrink-0 flex items-center gap-1 bg-slate-900 dark:bg-slate-800 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg whitespace-nowrap self-start tabular-nums">
+                        <MapPinIcon className="w-3 h-3 shrink-0" />
+                        {formatKm(station.distance)} km
                       </div>
                     )}
                   </div>
 
                   {tankSize > 0 && (
-                    <div className="bg-slate-900 dark:bg-slate-800 rounded-2xl p-4 mb-4 text-white animate-in fade-in zoom-in duration-300">
-                      <div className="flex justify-between items-end">
+                    <div className="bg-slate-900 dark:bg-slate-950/70 dark:ring-1 dark:ring-slate-700/60 rounded-2xl p-4 mb-4 text-white animate-in fade-in zoom-in duration-300">
+                      <div className="flex justify-between items-center gap-3">
                         <div>
                           <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">
                             Total {tankSize}L
                           </p>
-                          <p className="text-2xl font-black">
-                            {total > 0 ? total.toFixed(2) : "--"}€
+                          <p className="text-2xl font-black tabular-nums">
+                            {total > 0 ? formatEur(total) : "--"}&nbsp;€
                           </p>
                         </div>
                         {savings > 0 && (
-                          <div className="text-right">
-                            <p className="text-[10px] font-bold text-green-400 uppercase">
+                          <div className="flex items-center gap-1.5 bg-green-500/15 border border-green-500/30 rounded-full pl-2 pr-3 py-1.5 shrink-0">
+                            <ArrowUpIcon className="w-3.5 h-3.5 text-green-400 shrink-0" />
+                            <span className="text-[9px] font-black uppercase tracking-wider text-green-400/80">
                               Ahorras
-                            </p>
-                            <p className="text-lg font-black text-green-400">
-                              +{savings.toFixed(2)}€
-                            </p>
+                            </span>
+                            <span className="text-base font-black text-green-400 tabular-nums leading-none">
+                              +{formatEur(savings)}&nbsp;€
+                            </span>
                           </div>
                         )}
                       </div>
@@ -836,9 +955,10 @@ function App() {
                     href={`https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-auto block w-full py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-center rounded-xl font-bold text-sm hover:bg-slate-900 hover:text-white dark:hover:bg-indigo-600 transition-all"
+                    className="mt-auto flex items-center justify-center gap-1.5 w-full py-3.5 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-200 dark:shadow-indigo-900/40 hover:bg-indigo-700 active:scale-[0.98] transition-all"
                   >
-                    Ir a la estación ➜
+                    Ir a la estación
+                    <ArrowUpRightIcon className="w-4 h-4 shrink-0" />
                   </a>
                 </div>
               );
@@ -880,7 +1000,10 @@ function App() {
                   <Marker position={[userLocation.lat, userLocation.lng]}>
                     <Popup>
                       <div className="text-center font-bold text-indigo-600">
-                        📍 Estás aquí
+                        <span className="inline-flex items-center gap-1">
+                          <MapPinIcon className="w-4 h-4 shrink-0" />
+                          Estás aquí
+                        </span>
                         <br />
                         <span className="text-xs text-slate-500 font-normal">
                           Radio: {searchRadius} km
@@ -920,8 +1043,9 @@ function App() {
                       <Popup>
                         <div className="text-center min-w-[120px]">
                           {isCheapest && (
-                            <div className="text-xs font-bold text-yellow-600 mb-1">
-                              👑 ¡LA MÁS BARATA!
+                            <div className="flex items-center justify-center gap-1 text-xs font-bold text-yellow-600 mb-1">
+                              <CrownIcon className="w-3.5 h-3.5 shrink-0" />
+                              ¡LA MÁS BARATA!
                             </div>
                           )}
                           <h3 className="font-bold text-slate-800">
@@ -931,7 +1055,7 @@ function App() {
                             {station.address}
                           </p>
                           <div className="mt-2 bg-indigo-600 text-white font-black py-1 px-2 rounded-lg text-lg">
-                            {stationPrice.toFixed(3)} €
+                            {formatPrice(stationPrice)} €
                           </div>
                           <a
                             href={`https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`}
