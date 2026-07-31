@@ -117,6 +117,13 @@ const kmFormat = new Intl.NumberFormat("es-ES", {
   minimumFractionDigits: 1,
   maximumFractionDigits: 1,
 });
+// Miles con punto: "11.021 gasolineras", no "11021".
+const numberFormat = new Intl.NumberFormat("es-ES");
+
+// Cuántas tarjetas puede pedir el usuario. 50 es el valor histórico y sigue
+// siendo el arranque para quien no toca el selector.
+const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
+const DEFAULT_PAGE_SIZE = 50;
 
 const formatPrice = (n) => priceFormat.format(n);
 const formatEur = (n) => eurFormat.format(n);
@@ -316,8 +323,12 @@ function App() {
   const [viewMode, setViewMode] = useState("list");
   // Cuántas tarjetas se muestran. Antes la lista cortaba en 50 en silencio: en
   // "Toda España" son más de 11.000 estaciones y nada indicaba que hubiera más.
-  const PAGE_SIZE = 50;
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  // Ahora lo elige el usuario; el tope es 200 porque cada tarjeta es un nodo
+  // pesado y pintar miles de golpe bloquea el navegador en móvil.
+  const [pageSize, setPageSize] = useState(() => {
+    const saved = Number(localStorage.getItem("tanke_page_size"));
+    return PAGE_SIZE_OPTIONS.includes(saved) ? saved : DEFAULT_PAGE_SIZE;
+  });
   // `stations` y `currentAverage` ya no son estado: se derivan más abajo.
   const [allStationsInProvince, setAllStationsInProvince] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -520,19 +531,13 @@ function App() {
     searchRadius,
   ]);
 
-  // Al cambiar cualquier filtro volvemos a la primera página: si no, quien había
-  // pulsado "Ver más" seguiría viendo 200 tarjetas de la búsqueda nueva.
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [
-    selectedMunicipality,
-    sortType,
-    userLocation,
-    allStationsInProvince,
-    searchTerm,
-    gpsSort,
-    searchRadius,
-  ]);
+  // El límite es una preferencia del usuario, no estado de la búsqueda: al
+  // cambiar de provincia o de filtro se mantiene y no hay nada que resetear.
+  const handlePageSizeChange = (e) => {
+    const value = Number(e.target.value);
+    setPageSize(value);
+    localStorage.setItem("tanke_page_size", String(value));
+  };
 
   const handleNearMe = () => {
     setLoading(true);
@@ -940,21 +945,38 @@ function App() {
         ) : viewMode === "list" ? (
           <>
           {stations.length > 0 && (
-            <div className="flex items-baseline justify-between gap-3 mb-4 px-1">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 px-1">
               <p className="text-xs font-bold text-slate-500 dark:text-slate-400 tabular-nums">
-                Mostrando {Math.min(visibleCount, stations.length)} de{" "}
+                Mostrando {Math.min(pageSize, stations.length)} de{" "}
                 {numberFormat.format(stations.length)}{" "}
                 {stations.length === 1 ? "gasolinera" : "gasolineras"}
               </p>
-              {currentAverage > 0 && (
-                <p className="text-xs text-slate-400 dark:text-slate-500 tabular-nums">
-                  Media: {formatPrice(currentAverage)}&nbsp;€
-                </p>
-              )}
+              <div className="flex items-center gap-3">
+                {currentAverage > 0 && (
+                  <p className="text-xs text-slate-400 dark:text-slate-500 tabular-nums">
+                    Media: {formatPrice(currentAverage)}&nbsp;€
+                  </p>
+                )}
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
+                  <span className="hidden sm:inline">Mostrar</span>
+                  <select
+                    aria-label="Gasolineras por página"
+                    className="py-1.5 pl-2.5 pr-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 tabular-nums cursor-pointer"
+                    value={pageSize}
+                    onChange={handlePageSizeChange}
+                  >
+                    {PAGE_SIZE_OPTIONS.map((size) => (
+                      <option key={size} value={size}>
+                        {size}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
             </div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {stations.slice(0, visibleCount).map((station) => {
+            {stations.slice(0, pageSize).map((station) => {
               const price = getPriceForStation(station);
               const total = price * tankSize;
               const savings = (currentAverage - price) * tankSize;
@@ -1071,6 +1093,7 @@ function App() {
               );
             })}
           </div>
+          </>
         ) : (
           <div className="h-150 w-full rounded-3xl overflow-hidden shadow-xl border border-slate-200 dark:border-slate-800 z-0 relative">
             <MapContainer
