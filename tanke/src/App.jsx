@@ -125,6 +125,13 @@ const numberFormat = new Intl.NumberFormat("es-ES");
 const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
 const DEFAULT_PAGE_SIZE = 50;
 
+// El mapa es la vista más cara: cada marcador es un divIcon con su HTML (y su
+// <img> de marca) más un Popup que react-leaflet monta aunque nadie lo abra.
+// En móvil, 100 marcadores hacían que el mapa fuese a tirones al arrastrar.
+const MAP_LIMIT_MOBILE = 40;
+const MAP_LIMIT_DESKTOP = 100;
+const MOBILE_QUERY = "(max-width: 768px)";
+
 const formatPrice = (n) => priceFormat.format(n);
 const formatEur = (n) => eurFormat.format(n);
 const formatKm = (n) => kmFormat.format(n);
@@ -223,6 +230,22 @@ function RecenterMap({ stations }) {
     }
   }, [stations, map]);
   return null;
+}
+
+// Tope de marcadores según el dispositivo. Se escucha el cambio del media
+// query para que girar el móvil o redimensionar no deje el tope de la otra
+// orientación.
+function useMapMarkerCap() {
+  const [isMobile, setIsMobile] = useState(
+    () => window.matchMedia(MOBILE_QUERY).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(MOBILE_QUERY);
+    const onChange = (e) => setIsMobile(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return isMobile ? MAP_LIMIT_MOBILE : MAP_LIMIT_DESKTOP;
 }
 
 const PriceTag = React.memo(({ label, price, highlight, currentAverage }) => {
@@ -329,6 +352,9 @@ function App() {
     const saved = Number(localStorage.getItem("tanke_page_size"));
     return PAGE_SIZE_OPTIONS.includes(saved) ? saved : DEFAULT_PAGE_SIZE;
   });
+  // El mapa respeta la misma elección que la lista, pero con techo propio: el
+  // coste de una tarjeta fuera de pantalla es cero y el de un marcador no.
+  const mapMarkerLimit = Math.min(pageSize, useMapMarkerCap());
   // `stations` y `currentAverage` ya no son estado: se derivan más abajo.
   const [allStationsInProvince, setAllStationsInProvince] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1095,6 +1121,17 @@ function App() {
           </div>
           </>
         ) : (
+          <>
+          {/* El corte no puede ser silencioso: si hay 11.000 estaciones y se
+              pintan 40, hay que decir cuáles son (las más baratas del orden
+              activo) para que nadie crea que el mapa está incompleto. */}
+          {stations.length > mapMarkerLimit && (
+            <p className="mb-3 px-1 text-xs font-bold text-slate-500 dark:text-slate-400 tabular-nums">
+              Mostrando en el mapa las {mapMarkerLimit} más baratas de{" "}
+              {numberFormat.format(stations.length)}. Ajusta el filtro de zona
+              para afinar.
+            </p>
+          )}
           <div className="h-150 w-full rounded-3xl overflow-hidden shadow-xl border border-slate-200 dark:border-slate-800 z-0 relative">
             <MapContainer
               center={[40.416, -3.703]}
@@ -1145,15 +1182,15 @@ function App() {
               )}
 
               {(() => {
-                const currentPrices = stations
-                  .slice(0, 100)
+                const visibleStations = stations.slice(0, mapMarkerLimit);
+                const currentPrices = visibleStations
                   .map((s) => getPriceForStation(s))
                   .filter((p) => p > 0);
 
                 const minPrice =
                   currentPrices.length > 0 ? Math.min(...currentPrices) : 0;
 
-                return stations.slice(0, 100).map((station) => {
+                return visibleStations.map((station) => {
                   const stationPrice = getPriceForStation(station);
                   const isCheapest =
                     stationPrice > 0 && stationPrice === minPrice;
@@ -1203,6 +1240,7 @@ function App() {
               })()}
             </MapContainer>
           </div>
+          </>
         )}
       </div>
     </div>
