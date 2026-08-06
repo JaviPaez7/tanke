@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "node server.js",
-    "sitemap": "node scripts/generate-sitemap.mjs"
+    "sitemap": "node scripts/generate-sitemap.mjs",
+    "og": "node scripts/generate-og.mjs"
   },
   "dependencies": {
     "axios": "^1.13.4",
@@ -22,6 +23,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
@@ -32,6 +34,7 @@
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
     "postcss": "^8.5.6",
+    "sharp": "^0.35.3",
     "tailwindcss": "^4.1.18",
     "vite": "^7.2.4",
     "vite-plugin-pwa": "^1.2.0"

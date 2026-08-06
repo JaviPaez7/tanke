@@ -10,7 +10,7 @@ export default defineConfig({
       includeAssets: [
         "favicon.ico",
         "apple-touch-icon.png",
-        "og.png",
+        "og.jpg",
         "robots.txt",
         "sitemap.xml",
       ],

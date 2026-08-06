@@ -90,13 +90,15 @@ function layout({
   <meta property="og:title" content="${escapeHtml(ogTitle || title)}" />
   <meta property="og:description" content="${escapeHtml(ogDescription || description)}" />
   <meta property="og:url" content="${escapeHtml(canonical)}" />
-  <meta property="og:image" content="${SITE_URL}/og.png" />
+  <meta property="og:image" content="${SITE_URL}/og.jpg" />
+  <meta property="og:image:type" content="image/jpeg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Tanke — comparador de gasolineras baratas" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="${escapeHtml(ogTitle || title)}" />
   <meta name="twitter:description" content="${escapeHtml(ogDescription || description)}" />
-  <meta name="twitter:image" content="${SITE_URL}/og.png" />
+  <meta name="twitter:image" content="${SITE_URL}/og.jpg" />
   <meta name="theme-color" content="#0f172a" />
   <link rel="icon" href="/favicon.ico" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
