@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { getAllGasStations } from "./services/gasStations";
+import { api } from "./api/client";
 import {
   fuelSortBySlug,
   resolveProvinceSlug,
@@ -14,12 +15,14 @@ import {
   ListIcon,
   MapIcon,
   MapPinIcon,
-  MoonIcon,
-  SunIcon,
   TagIcon,
   XIcon,
 } from "./icons";
 import { ICON_PATHS } from "./iconPaths";
+import { AppChrome } from "./components/AppChrome";
+import { FavoriteButton } from "./components/FavoriteButton";
+import { ReportButton } from "./components/ReportButton";
+import { StationListSkeleton } from "./components/StationSkeleton";
 
 // IMPORTACIONES DEL MAPA
 import {
@@ -101,6 +104,12 @@ const provinceIds = {
   Ceuta: "51",
   Melilla: "52",
 };
+
+// El Ministerio devuelve `IDProvincia`, no el nombre que usa la app
+// ("PALMAS (LAS)" frente a "Las Palmas"), así que la traducción va por ID.
+const provinceNameById = Object.fromEntries(
+  Object.entries(provinceIds).map(([name, id]) => [id, name]),
+);
 
 // FORMATO ESPAÑOL DE NÚMEROS
 // toFixed() siempre devuelve punto decimal ("1.244"), que en español se lee como
@@ -362,6 +371,7 @@ function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [userLocation, setUserLocation] = useState(null);
   const [geoError, setGeoError] = useState(null);
+  const [locationNotice, setLocationNotice] = useState("");
   const [gpsSort, setGpsSort] = useState("price");
   const [searchRadius, setSearchRadius] = useState(
     () => Number(localStorage.getItem("tanke_radius")) || 20,
@@ -441,8 +451,7 @@ function App() {
     if (descEl) descEl.setAttribute("content", desc);
   }, [selectedProvince]);
 
-  const handleProvinceChange = (e) => {
-    const provinceName = e.target.value;
+  const applyProvince = (provinceName) => {
     setSelectedProvince(provinceName);
     localStorage.setItem("tanke_province", provinceName);
     setSelectedMunicipality("");
@@ -450,7 +459,6 @@ function App() {
     setSearchTerm("");
     const id =
       provinceName === "Toda España" ? "all" : provinceIds[provinceName];
-    if (id) loadProvinceData(id);
 
     const url = new URL(window.location.href);
     if (provinceName === "Toda España") {
@@ -459,6 +467,13 @@ function App() {
       url.searchParams.set("provincia", slugify(provinceName));
     }
     window.history.replaceState({}, "", url);
+
+    return id ? loadProvinceData(id) : Promise.resolve();
+  };
+
+  const handleProvinceChange = (e) => {
+    setLocationNotice("");
+    applyProvince(e.target.value);
   };
 
   const municipalityList = [
@@ -568,6 +583,7 @@ function App() {
   const handleNearMe = () => {
     setLoading(true);
     setGeoError(null);
+    setLocationNotice("");
     if (!navigator.geolocation) {
       setGeoError(
         "Tu navegador no soporta geolocalización. Elige tu provincia abajo.",
@@ -576,14 +592,43 @@ function App() {
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserLocation({
+      async (position) => {
+        const coords = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
-        });
+        };
+        setUserLocation(coords);
         setSelectedMunicipality("");
         localStorage.removeItem("tanke_municipality");
         setSearchTerm("");
+
+        // Sin esto, quien tenía "Las Palmas" guardado y activaba el GPS en
+        // Madrid seguía viendo estaciones canarias: el radio filtraba una
+        // provincia que no era la suya. La estación más cercana nos dice en
+        // qué provincia está de verdad.
+        try {
+          const found = await api.locate(coords.lat, coords.lng);
+          const provinceName = found.provinceId
+            ? provinceNameById[found.provinceId]
+            : null;
+
+          if (!provinceName) {
+            setLocationNotice(
+              "No hemos reconocido tu provincia. Elígela abajo si los precios no cuadran.",
+            );
+          } else if (provinceName !== selectedProvince) {
+            setLocationNotice(
+              `Estás en ${provinceName}. Hemos cambiado la zona por ti.`,
+            );
+            await applyProvince(provinceName);
+          }
+        } catch (error) {
+          console.error(error);
+          setLocationNotice(
+            "No hemos podido comprobar tu provincia. Revisa el selector si los precios no cuadran.",
+          );
+        }
+
         setLoading(false);
       },
       (error) => {
@@ -615,7 +660,7 @@ function App() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-100 pb-20 transition-colors duration-500">
       {/* HERO SECTION */}
-      <div className="relative py-12 px-4 overflow-hidden shadow-2xl bg-slate-900 min-h-75 flex flex-col justify-center items-center">
+      <div className="relative pt-20 pb-12 px-4 overflow-hidden shadow-2xl bg-slate-900 min-h-75 flex flex-col justify-center items-center">
         <div className="absolute inset-0 z-0">
           {/* Antes era un JPEG de 939 KB servido desde Unsplash: un tercero en
               la ruta crítica del LCP, a 2670 px de ancho incluso en móvil y sin
@@ -646,38 +691,8 @@ function App() {
               pilotos traseros del coche, que caen justo a su altura */}
           <div className="absolute inset-0 bg-gradient-to-b from-slate-900/90 via-slate-900/68 to-slate-900/90"></div>
         </div>
+        <AppChrome variant="hero" isDark={isDark} setIsDark={setIsDark} />
         <div className="max-w-7xl mx-auto text-center relative z-10 w-full">
-          <button
-            onClick={() => setIsDark(!isDark)}
-            role="switch"
-            aria-checked={isDark}
-            aria-label={
-              isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"
-            }
-            title={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-            className="absolute -top-6 right-0 w-16 h-9 p-1 flex items-center bg-slate-900/50 hover:bg-slate-900/70 backdrop-blur-md rounded-full transition-colors border border-white/20 shadow-xl z-50 cursor-pointer"
-          >
-            {/* pastilla que se desliza bajo el icono activo */}
-            <span
-              className={`absolute top-1 left-1 w-7 h-7 rounded-full bg-indigo-600 shadow-md transition-transform duration-200 ease-out motion-reduce:transition-none ${
-                isDark ? "translate-x-7" : "translate-x-0"
-              }`}
-            />
-            <span
-              className={`relative z-10 flex-1 flex items-center justify-center transition-colors ${
-                isDark ? "text-white/40" : "text-white"
-              }`}
-            >
-              <SunIcon className="w-4 h-4" />
-            </span>
-            <span
-              className={`relative z-10 flex-1 flex items-center justify-center transition-colors ${
-                isDark ? "text-white" : "text-white/40"
-              }`}
-            >
-              <MoonIcon className="w-4 h-4" />
-            </span>
-          </button>
           <h1 className="text-5xl md:text-7xl font-black mb-2 tracking-tighter text-white drop-shadow-2xl">
             Tanke<span className="text-indigo-500">.</span>
           </h1>
@@ -709,7 +724,10 @@ function App() {
                     GPS activo
                   </span>
                   <button
-                    onClick={() => setUserLocation(null)}
+                    onClick={() => {
+                      setUserLocation(null);
+                      setLocationNotice("");
+                    }}
                     aria-label="Desactivar GPS"
                     title="Desactivar GPS"
                     className="ml-2 w-6 h-6 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center shadow hover:bg-red-50 dark:hover:bg-red-900/50 transition-colors"
@@ -873,6 +891,25 @@ function App() {
             </div>
           )}
 
+          {/* Cambiar la provincia por debajo sin decir nada haría dudar de los
+              precios: el aviso explica por qué la lista ya no es la de antes. */}
+          {locationNotice && userLocation && (
+            <div
+              role="status"
+              className="mt-4 flex items-start gap-2.5 rounded-xl border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50 dark:bg-indigo-900/20 px-4 py-3 text-sm text-indigo-800 dark:text-indigo-200"
+            >
+              <BroadcastIcon className="w-4 h-4 shrink-0 mt-0.5" />
+              <span className="flex-1">{locationNotice}</span>
+              <button
+                onClick={() => setLocationNotice("")}
+                aria-label="Cerrar aviso"
+                className="shrink-0 p-0.5 rounded hover:bg-indigo-100 dark:hover:bg-indigo-800/40 transition-colors"
+              >
+                <XIcon className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           {/* FILTROS COMBUSTIBLE */}
           <div className="mt-5 pt-5 border-t border-slate-100 dark:border-slate-800">
             <span className="block text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 mb-2">
@@ -962,12 +999,10 @@ function App() {
 
         {/* CONTENIDO (MAPA O LISTA) */}
         {loading ? (
-          <div className="text-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-            <p className="text-slate-400 font-medium">
-              Buscando mejores precios...
-            </p>
-          </div>
+          <StationListSkeleton
+            count={Math.min(pageSize, 6)}
+            withTank={tankSize > 0}
+          />
         ) : viewMode === "list" ? (
           <>
           {stations.length > 0 && (
@@ -1047,12 +1082,18 @@ function App() {
                       </span>
                     </div>
 
-                    {station.distance !== undefined && (
-                      <div className="flex-shrink-0 flex items-center gap-1 bg-slate-900 dark:bg-slate-800 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg whitespace-nowrap self-start tabular-nums">
-                        <MapPinIcon className="w-3 h-3 shrink-0" />
-                        {formatKm(station.distance)} km
+                    <div className="flex-shrink-0 flex flex-col items-end gap-2 self-start">
+                      <div className="flex items-center gap-1.5">
+                        <ReportButton station={station} />
+                        <FavoriteButton station={station} />
                       </div>
-                    )}
+                      {station.distance !== undefined && (
+                        <div className="flex items-center gap-1 bg-slate-900 dark:bg-slate-800 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg whitespace-nowrap tabular-nums">
+                          <MapPinIcon className="w-3 h-3 shrink-0" />
+                          {formatKm(station.distance)} km
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {tankSize > 0 && (

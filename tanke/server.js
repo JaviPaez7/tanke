@@ -1,4 +1,5 @@
 // Servidor de produccion: estatico, proxy API, landings SEO y sitemap.
+import "dotenv/config";
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -21,11 +22,19 @@ import {
   renderSitemapXml,
   allSitemapPaths,
 } from "./seo/html.js";
+import { mountApi } from "./server/api.js";
+import { bootstrap } from "./server/bootstrap.js";
+import { prisma } from "./server/db.js";
+import { startBackgroundJobs } from "./server/jobs.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3002;
 const distDir = path.join(__dirname, "dist");
+
+app.set("trust proxy", 1);
+app.use(express.json({ limit: "200kb" }));
+mountApi(app);
 
 // Cache para HTML. Antes las landings iban con max-age=3600 y 86400, así que un
 // visitante que ya había estado seguía viendo la versión vieja hasta 24 h
@@ -35,37 +44,6 @@ const distDir = path.join(__dirname, "dist");
 // evita esperas mientras se refresca.
 const HTML_CACHE =
   "public, max-age=0, must-revalidate, s-maxage=600, stale-while-revalidate=300";
-
-app.get("/api/gas", async (req, res) => {
-  const id = req.query.id || "35";
-  const GOV_URL_PROVINCE =
-    "https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/FiltroProvincia";
-  const GOV_URL_ALL =
-    "https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/";
-  const targetUrl = id === "all" ? GOV_URL_ALL : `${GOV_URL_PROVINCE}/${id}`;
-
-  try {
-    res.setHeader("Cache-Control", "s-maxage=600, stale-while-revalidate=300");
-    res.setHeader("Access-Control-Allow-Origin", "*");
-
-    const response = await fetch(targetUrl, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept: "application/json",
-      },
-      signal: AbortSignal.timeout(15000),
-    });
-
-    if (!response.ok) throw new Error(`Gov API responded with ${response.status}`);
-
-    const data = await response.json();
-    res.status(200).json(data);
-  } catch (error) {
-    console.error("Error:", error.message);
-    res.status(500).json({ error: "Saturacion en el Ministerio o timeout" });
-  }
-});
 
 app.get("/sitemap.xml", (_req, res) => {
   res
@@ -170,5 +148,8 @@ function notFoundHtml() {
   <h1>Página no encontrada</h1><p><a href="/">Volver a Tanke</a> · <a href="/gasolineras/las-palmas">Gasolineras en Las Palmas</a></p>
   </div></body></html>`;
 }
+
+await bootstrap(prisma);
+if (prisma) startBackgroundJobs(prisma);
 
 app.listen(PORT, () => console.log(`tanke server listening on ${PORT}`));

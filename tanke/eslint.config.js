@@ -27,7 +27,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['server.js', 'seo/**/*.{js,mjs}', 'scripts/**/*.{js,mjs}'],
+    files: ['server.js', 'server/**/*.{js,mjs}', 'prisma/**/*.{js,mjs}', 'seo/**/*.{js,mjs}', 'scripts/**/*.{js,mjs}'],
     languageOptions: {
       globals: globals.node,
     },

@@ -2,37 +2,41 @@
 
 **En vivo:** [tanke.javistudio.dev](https://tanke.javistudio.dev)
 
-Tanke es una plataforma para encontrar las gasolineras más económicas en España, optimizando el ahorro según el tipo de combustible y la capacidad del depósito.
+Tanke es una plataforma para encontrar las gasolineras más económicas en España, con cuentas, alertas e histórico para Canarias.
 
 > El README del repositorio (GitHub) está en la [raíz](../README.md). Este archivo documenta la app en `tanke/`.
 
 ## Reto técnico: superar el bloqueo 403
 
-Uno de los mayores desafíos fue el acceso a los datos de la sede electrónica del Ministerio. Por CORS y el bloqueo de agentes no identificados hace falta un **proxy en servidor**:
+El Ministerio bloquea clientes sin User-Agent de navegador y no envía CORS. El browser **nunca** llama al origen gubernamental:
 
-- Express (`server.js`) en Docker sirve el estático y `/api/gas`
-- En local, Vite proxyea `/api/gas` al Ministerio
-- Encabezados de navegador real para mantener el flujo de datos hacia el cliente
+- Express sirve el estático, `/api/gas` y el resto de la API
+- En local, Vite proxyea `/api` a Express (`:3003`)
+- Encabezados de navegador real en el fetch de servidor
 
 ## Stack
 
-**Frontend:** React 19 · Vite 7 · Tailwind CSS 4 · Leaflet · Axios · PWA  
+**Frontend:** React 19 · Vite 7 · Tailwind CSS 4 · Leaflet · React Router · PWA
 
-**Proxy:** Node.js · Express
+**API:** Node.js · Express · Prisma · PostgreSQL
 
 ## Arranque local
 
 ```bash
 cd tanke
+cp .env.example .env
 npm install
+npm run db:up
+npx prisma migrate deploy
+npx prisma generate
 npm run dev
 ```
 
-No hace falta `.env`. Scripts útiles: `npm run build`, `npm run preview`, `npm run lint`.
+Panel: `/admin` · `admin@tanke.dev` / `TankeAdmin2026`
 
 ## Despliegue
 
-- **Docker / VPS:** `Dockerfile` (Express en `:3002`) + compose → `tanke.javistudio.dev`
+- **Docker / VPS:** `Dockerfile` (Express en `:3002` + migrate) + compose con Postgres
 - **CI:** GitHub Actions → imagen GHCR y deploy en el VPS
 
 ## Autor

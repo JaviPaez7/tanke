@@ -1,10 +1,34 @@
 services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tanke
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tanke}
+      POSTGRES_DB: tanke
+    volumes:
+      - tanke_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tanke -d tanke"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   tanke:
     image: ghcr.io/javipaez7/tanke:${IMAGE_TAG:-latest}
     restart: unless-stopped
-    mem_limit: 128m
+    mem_limit: 256m
     ports:
       - '172.17.0.1:3002:3002'
+    environment:
+      DATABASE_URL: postgresql://tanke:${POSTGRES_PASSWORD:-tanke}@db:5432/tanke
+      SESSION_SECRET: ${SESSION_SECRET:-tanke-tfm-change-me}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@tanke.dev}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-TankeAdmin2026}
+      SNAPSHOT_PROVINCES: ${SNAPSHOT_PROVINCES:-35,38}
+    depends_on:
+      db:
+        condition: service_healthy
     networks:
       - default
       - public-edge
@@ -15,6 +39,9 @@ services:
       - "traefik.http.routers.tanke.entrypoints=websecure"
       - "traefik.http.routers.tanke.tls.certresolver=le"
       - "traefik.http.services.tanke.loadbalancer.server.port=3002"
+
+volumes:
+  tanke_pg:
 
 networks:
   public-edge:

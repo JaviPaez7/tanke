@@ -286,21 +286,225 @@
       .site-footer__legal p {
         margin: 0;
       }
+
+      /* ---- arranque ------------------------------------------------------- */
+      /* Lo único visible antes de que monte React. Reproduce el primer
+         fotograma real —la banda oscura del hero con su wordmark y su frase—
+         en lugar de un texto gris sobre blanco que luego saltaba a oscuro.
+         Sin animación: el contenido ya está aquí, no hay nada que anunciar. */
+      .boot {
+        box-sizing: border-box;
+        min-height: 18.75rem;
+        padding: 5rem 1rem 3rem;
+        background-color: #0f172a;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      .boot__mark {
+        margin: 0 0 0.5rem;
+        /* Mismos saltos que `text-5xl md:text-7xl` en el hero: si no coinciden,
+           el wordmark cambia de tamaño al montar React. */
+        font-size: 3rem;
+        font-weight: 900;
+        letter-spacing: -0.05em;
+        line-height: 1;
+        color: #fff;
+      }
+      .boot__mark span {
+        color: #6366f1;
+      }
+      .boot__claim {
+        margin: 0;
+        max-width: 32rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        line-height: 1.6;
+        color: #cbd5e1;
+      }
+      .boot__claim strong {
+        color: #fff;
+        font-weight: 700;
+      }
+      @media (min-width: 48rem) {
+        .boot__mark {
+          font-size: 4.5rem;
+        }
+        .boot__claim {
+          font-size: 1rem;
+        }
+      }
+      /* La tarjeta de controles solapa la banda 2rem, igual que en la app: así
+         el hueco no queda vacío y nada se mueve de sitio al montar React. */
+      .boot__body {
+        max-width: 80rem;
+        margin: 0 auto;
+        padding: 0 1rem;
+      }
+      .boot__panel {
+        margin-top: -2rem;
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        border-radius: 1.5rem;
+        background-color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        box-shadow:
+          0 20px 25px -5px rgb(15 23 42 / 0.1),
+          0 8px 10px -6px rgb(15 23 42 / 0.1);
+      }
+      html.dark .boot__panel {
+        background-color: #0f172a;
+        border-color: #1e293b;
+      }
+      /* Mismos bloques grises que el esqueleto de React, para que el relevo
+         entre el HTML estático y la app no se note. */
+      .boot__block {
+        display: block;
+        border-radius: 0.5rem;
+        background-color: rgb(226 232 240 / 0.9);
+      }
+      html.dark .boot__block {
+        background-color: #1e293b;
+      }
+      .boot__pulse {
+        animation: boot-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+      @keyframes boot-pulse {
+        50% {
+          opacity: 0.55;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot__pulse {
+          animation: none;
+        }
+      }
+      .boot__controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .boot__controls .boot__block {
+        height: 3rem;
+        border-radius: 0.75rem;
+      }
+      .boot__btn {
+        width: 9rem;
+      }
+      .boot__grow {
+        flex: 1;
+        min-width: 8rem;
+      }
+      .boot__chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 1.25rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid #f1f5f9;
+      }
+      html.dark .boot__chips {
+        border-top-color: #1e293b;
+      }
+      .boot__chips .boot__block {
+        height: 2.25rem;
+        width: 6rem;
+        border-radius: 0.75rem;
+      }
+      .boot__grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: 1fr;
+      }
+      .boot__card {
+        padding: 1.5rem;
+        border-radius: 2rem;
+        background-color: #fff;
+        border: 1px solid #f1f5f9;
+      }
+      html.dark .boot__card {
+        background-color: #0f172a;
+        border-color: #1e293b;
+      }
+      .boot__card .boot__block + .boot__block {
+        margin-top: 1rem;
+      }
+      .boot__card-head {
+        height: 3rem;
+      }
+      .boot__card-prices {
+        height: 7rem;
+        border-radius: 0.75rem;
+      }
+      .boot__card-cta {
+        height: 3rem;
+        border-radius: 0.75rem;
+      }
+      @media (min-width: 48rem) {
+        .boot__grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @media (min-width: 64rem) {
+        .boot__grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+      .boot__sr {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
     </style>
   </head>
   <body>
     <div id="root">
-      <div
-        style="
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          height: 100vh;
-        "
-      >
-        <h1 style="font-family: sans-serif; opacity: 0.5; font-size: 1.5rem">
-          Tanke — cargando gasolineras baratas…
-        </h1>
+      <div class="boot" role="status">
+        <p class="boot__mark">Tanke<span>.</span></p>
+        <p class="boot__claim">
+          Gasolineras más baratas en <strong>Canarias</strong> y toda España.
+          Precios en tiempo real de gasolina 95, 98 y diésel.
+        </p>
+        <span class="boot__sr">Cargando gasolineras…</span>
+      </div>
+      <div class="boot__body boot__pulse" aria-hidden="true">
+        <div class="boot__panel">
+          <div class="boot__controls">
+            <span class="boot__block boot__btn"></span>
+            <span class="boot__block boot__btn"></span>
+            <span class="boot__block boot__grow"></span>
+          </div>
+          <div class="boot__chips">
+            <span class="boot__block"></span>
+            <span class="boot__block"></span>
+            <span class="boot__block"></span>
+            <span class="boot__block"></span>
+          </div>
+        </div>
+        <div class="boot__grid">
+          <div class="boot__card">
+            <span class="boot__block boot__card-head"></span>
+            <span class="boot__block boot__card-prices"></span>
+            <span class="boot__block boot__card-cta"></span>
+          </div>
+          <div class="boot__card">
+            <span class="boot__block boot__card-head"></span>
+            <span class="boot__block boot__card-prices"></span>
+            <span class="boot__block boot__card-cta"></span>
+          </div>
+          <div class="boot__card">
+            <span class="boot__block boot__card-head"></span>
+            <span class="boot__block boot__card-prices"></span>
+            <span class="boot__block boot__card-cta"></span>
+          </div>
+        </div>
       </div>
     </div>
 

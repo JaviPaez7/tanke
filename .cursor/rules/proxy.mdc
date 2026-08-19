@@ -7,7 +7,8 @@ alwaysApply: false
 # Proxy Ministerio
 
 - Endpoint: `GET /api/gas?id=<codigo|all>`.
-- Dev: proxy Vite con rewrite a FiltroProvincia / listado completo.
-- Prod: `server.js` — User-Agent navegador, CORS `*`, cache `s-maxage=600`, timeout 15s.
+- `GET /api/gas/locate?lat&lng`: devuelve el `IDProvincia` de la estación más cercana (150 km máximo) para que el GPS cambie el selector. Usa el listado nacional cacheado 10 min en `server/lib/stations.js`.
+- Dev: Vite proxyea `/api` a Express (`127.0.0.1:3003`). Express habla con el Ministerio.
+- Prod: `server/routes/gas.js` — User-Agent navegador, CORS `*`, cache `s-maxage=600`, timeout 15s.
 - SPA: Express sirve `dist/index.html` para rutas no-API.
 - No elimines el proxy ni el User-Agent; el origen gubernamental bloquea clientes bare.

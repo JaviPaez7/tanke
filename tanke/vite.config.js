@@ -56,22 +56,20 @@ export default defineConfig({
           /^\/sitemap\.xml$/,
           /^\/robots\.txt$/,
         ],
+        runtimeCaching: [
+          {
+            urlPattern: /\/api\//,
+            handler: "NetworkOnly",
+          },
+        ],
       },
     }),
   ],
   server: {
     proxy: {
-      "/api/gas": {
-        target: "https://sedeaplicaciones.minetur.gob.es",
+      "/api": {
+        target: "http://127.0.0.1:3003",
         changeOrigin: true,
-        rewrite: (path) => {
-          const url = new URL(path, "http://localhost");
-          const id = url.searchParams.get("id") || "35";
-          if (id === "all") {
-            return `/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/`;
-          }
-          return `/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/FiltroProvincia/${id}`;
-        },
       },
     },
   },

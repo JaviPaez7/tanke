@@ -7,6 +7,7 @@ alwaysApply: true
 
 - App en `tanke/`. React 19 + Vite. UI en **español**.
 - Fuente de verdad UI: `tanke/src/App.jsx` (ignora `save.jsx` salvo migración explícita).
-- Datos solo vía `/api/gas` — nunca fetch directo al Ministerio desde el browser.
-- Sin `.env` de aplicación. No reintroducir Vercel.
+- Datos de precios solo vía `/api/gas` — nunca fetch directo al Ministerio desde el browser.
+- Auth y persistencia: `/api/auth`, `/api/me`, `/api/admin`, `/api/articles`. Cookie `tanke_session`.
+- `.env` local a partir de `.env.example` (`DATABASE_URL`, `SESSION_SECRET`). No reintroducir Vercel.
 - No hagas commit/push sin que el usuario lo pida.

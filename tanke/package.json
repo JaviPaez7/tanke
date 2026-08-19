@@ -4,24 +4,38 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -k -n api,web -c cyan,magenta \"node server.js\" \"vite\"",
+    "dev:web": "vite",
     "prebuild": "node scripts/generate-sitemap.mjs",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "node server.js",
+    "db:up": "docker start tanke-pg 2>/dev/null || docker run -d --name tanke-pg -e POSTGRES_USER=tanke -e POSTGRES_PASSWORD=tanke -e POSTGRES_DB=tanke -p 5433:5432 postgres:16-alpine",
+    "prisma:migrate": "prisma migrate deploy",
+    "prisma:generate": "prisma generate",
     "sitemap": "node scripts/generate-sitemap.mjs",
     "og": "node scripts/generate-og.mjs"
   },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
   "dependencies": {
+    "@prisma/client": "^6.16.1",
     "axios": "^1.13.4",
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.6.1",
     "express": "^5.2.1",
     "leaflet": "^1.9.4",
+    "prisma": "^6.16.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-leaflet": "^5.0.0"
+    "react-leaflet": "^5.0.0",
+    "react-router-dom": "^7.9.1"
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "@eslint/js": "^9.39.1",
     "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/postcss": "^4.1.18",

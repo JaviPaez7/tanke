@@ -1,0 +1,160 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  user
+  admin
+}
+
+enum ReportStatus {
+  pending
+  reviewed
+  dismissed
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(user)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions  Session[]
+  favorites Favorite[]
+  alerts    PriceAlert[]
+  reports   StationReport[]
+  articles  Article[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Favorite {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stationId    String
+  stationName  String
+  address      String
+  municipality String
+  province     String
+  lat          Float
+  lng          Float
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, stationId])
+}
+
+model PriceAlert {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provinceId   String
+  province     String
+  municipality String   @default("")
+  fuel         String
+  threshold    Float
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@index([userId, active])
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  slug     String    @unique
+  articles Article[]
+}
+
+model Tag {
+  id       String       @id @default(cuid())
+  name     String       @unique
+  slug     String       @unique
+  articles ArticleTag[]
+}
+
+model Article {
+  id         String       @id @default(cuid())
+  title      String
+  slug       String       @unique
+  excerpt    String       @default("")
+  body       String
+  published  Boolean      @default(false)
+  categoryId String?
+  category   Category?    @relation(fields: [categoryId], references: [id])
+  authorId   String
+  author     User         @relation(fields: [authorId], references: [id])
+  tags       ArticleTag[]
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+}
+
+model ArticleTag {
+  articleId String
+  tagId     String
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, tagId])
+}
+
+model StationReport {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stationId   String
+  stationName String
+  type        String
+  message     String
+  status      ReportStatus @default(pending)
+  createdAt   DateTime     @default(now())
+
+  @@index([status])
+}
+
+model PriceSnapshot {
+  id              String   @id @default(cuid())
+  stationId       String
+  stationName     String
+  provinceId      String
+  province        String
+  municipality    String
+  price95         Float?
+  price98         Float?
+  priceDiesel     Float?
+  priceDieselPlus Float?
+  priceGLP        Float?
+  capturedDate    DateTime @db.Date
+  createdAt       DateTime @default(now())
+
+  @@unique([stationId, capturedDate])
+  @@index([provinceId, capturedDate])
+}
+
+model IngestionRun {
+  id          String    @id @default(cuid())
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+  ok          Boolean   @default(false)
+  provinceIds String
+  stations    Int       @default(0)
+  error       String?
+}
