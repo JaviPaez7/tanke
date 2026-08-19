@@ -707,18 +707,22 @@ function App() {
       <div className="max-w-7xl mx-auto px-4 -mt-8 relative z-20">
         <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-white/50 dark:border-slate-800 mb-8 p-4 md:p-6 transition-colors duration-300">
           {/* BARRA DE CONTROLES PRINCIPAL */}
-          <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-            <div className="flex gap-2 w-full md:w-auto">
+          {/* Los tres controles solo caben en una fila desde lg: en tablet se
+              apilan, que es como se ven bien a 768. */}
+          <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
+            {/* min-w-max + flex-wrap: en pantallas donde los dos rótulos no
+                caben, el segundo botón baja de línea en vez de recortarse. */}
+            <div className="flex flex-wrap gap-2 w-full lg:w-auto">
               {!userLocation ? (
                 <button
                   onClick={handleNearMe}
-                  className="flex-1 md:flex-none px-6 whitespace-nowrap bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 dark:shadow-indigo-900/50 transition-all flex items-center justify-center gap-2 h-12"
+                  className="flex-1 min-w-max lg:flex-none px-4 lg:px-6 whitespace-nowrap bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 dark:shadow-indigo-900/50 transition-all flex items-center justify-center gap-2 h-12"
                 >
                   <MapPinIcon className="w-4 h-4 shrink-0" />
                   Cerca de mí
                 </button>
               ) : (
-                <div className="flex items-center gap-2 bg-green-50 dark:bg-green-900/20 px-4 rounded-xl border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 font-bold text-sm h-12">
+                <div className="flex flex-1 min-w-max lg:flex-none items-center justify-center gap-2 whitespace-nowrap bg-green-50 dark:bg-green-900/20 px-4 rounded-xl border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 font-bold text-sm h-12">
                   <span className="flex items-center gap-1.5">
                     <BroadcastIcon className="w-4 h-4 shrink-0" />
                     GPS activo
@@ -740,7 +744,7 @@ function App() {
                 onClick={() =>
                   setViewMode(viewMode === "list" ? "map" : "list")
                 }
-                className={`px-6 whitespace-nowrap rounded-xl font-bold transition-all flex items-center justify-center gap-2 h-12 ${
+                className={`flex-1 min-w-max lg:flex-none px-4 lg:px-6 whitespace-nowrap rounded-xl font-bold transition-all flex items-center justify-center gap-2 h-12 ${
                   viewMode === "map"
                     ? "bg-slate-800 dark:bg-indigo-600 text-white shadow-lg"
                     : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
@@ -760,7 +764,7 @@ function App() {
               </button>
             </div>
 
-            <div className="w-full md:w-64 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-xl px-3 py-2.5">
+            <div className="w-full lg:w-64 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-xl px-3 py-2.5">
               <div className="flex items-baseline justify-between mb-2 gap-2">
                 <label
                   htmlFor="tank-size"
@@ -798,7 +802,7 @@ function App() {
               </div>
             </div>
 
-            <div className="w-full md:w-64 relative group">
+            <div className="w-full lg:w-64 relative group">
               <input
                 type="text"
                 placeholder="Buscar gasolinera..."
