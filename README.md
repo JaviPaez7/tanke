@@ -53,7 +53,8 @@ npm run lint
 
 - **Docker / VPS:** `tanke/Dockerfile` (Express en `:3002`) + `docker-compose.yml` (app + Postgres) → `tanke.javistudio.dev`
 - **CI:** GitHub Actions construye la imagen GHCR y despliega en el VPS
-- En el VPS hace falta el compose nuevo (servicio `db`) y, si quieres, `ADMIN_PASSWORD` / `SESSION_SECRET` en `/opt/gas-tracker/.env`
+- El VPS guarda su copia del compose en `/opt/gas-tracker`, con `POSTGRES_PASSWORD`, `SESSION_SECRET` y `ADMIN_PASSWORD` en el `.env` de al lado. Los datos viven en el volumen `gas-tracker_tanke_pg`, así que sobreviven a los despliegues
+- Las migraciones se aplican solas al arrancar el contenedor (`docker-entrypoint.sh`)
 
 ## Autor
 
