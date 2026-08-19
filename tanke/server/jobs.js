@@ -1,4 +1,8 @@
-import { fetchNormalized, utcDateOnly } from "./lib/stations.js";
+import {
+  fetchNormalized,
+  utcDateOnly,
+  warmLocateIndex,
+} from "./lib/stations.js";
 
 function snapshotProvinceIds() {
   const raw = process.env.SNAPSHOT_PROVINCES || "35,38";
@@ -90,6 +94,9 @@ export function startBackgroundJobs(prisma) {
   const tick = () => {
     runSnapshot(prisma).catch((error) => {
       console.error("Snapshot job:", error.message);
+    });
+    warmLocateIndex().catch((error) => {
+      console.error("Locate index:", error.message);
     });
   };
 

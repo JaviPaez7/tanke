@@ -11,7 +11,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "node server.js",
-    "db:up": "docker start tanke-pg 2>/dev/null || docker run -d --name tanke-pg -e POSTGRES_USER=tanke -e POSTGRES_PASSWORD=tanke -e POSTGRES_DB=tanke -p 5433:5432 postgres:16-alpine",
+    "db:up": "docker start tanke-pg 2>/dev/null || docker run -d --name tanke-pg -e POSTGRES_USER=tanke -e POSTGRES_PASSWORD=tanke -e POSTGRES_DB=tanke -p 127.0.0.1:5433:5432 postgres:16-alpine",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:generate": "prisma generate",
     "sitemap": "node scripts/generate-sitemap.mjs",

@@ -61,8 +61,6 @@ export function normalizeStations(rawData) {
     .filter((s) => s.id && (s.price95 > 0 || s.priceDiesel > 0));
 }
 
-// El listado nacional son ~11.000 estaciones y varios MB. Cachearlo evita
-// castigar al Ministerio cada vez que alguien activa el GPS.
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const cache = new Map();
 
@@ -88,22 +86,77 @@ function haversineKm(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// El listado nacional son ~11.000 estaciones y varios MB de JSON: descargarlo
+// al pulsar "cerca de mí" costaba unos ocho segundos. Para saber la provincia
+// solo hacen falta coordenadas y nombre, así que se guarda ese índice reducido
+// y no las estaciones completas. Las provincias no se mueven: aguanta el día.
+const LOCATE_TTL_MS = 24 * 60 * 60 * 1000;
+let locateIndex = null;
+let locatePending = null;
+
+async function buildLocateIndex() {
+  const raw = await fetchRawGas("all");
+  const list = raw.ListaEESSPrecio || raw;
+  const points = [];
+
+  if (Array.isArray(list)) {
+    for (const station of list) {
+      const provinceId = String(station.IDProvincia || "");
+      const lat = num(station.Latitud);
+      const lng = num(station["Longitud (WGS84)"]);
+      if (!provinceId || !lat || !lng) continue;
+      points.push({
+        lat,
+        lng,
+        provinceId,
+        province: station.Provincia || "",
+        municipality: station.Municipio || "",
+      });
+    }
+  }
+
+  return { at: Date.now(), points };
+}
+
+function getLocateIndex() {
+  if (locateIndex && Date.now() - locateIndex.at < LOCATE_TTL_MS) {
+    return Promise.resolve(locateIndex);
+  }
+
+  // Si llegan varias peticiones a la vez comparten una sola descarga.
+  locatePending ??= buildLocateIndex()
+    .then((index) => {
+      locateIndex = index;
+      return index;
+    })
+    .finally(() => {
+      locatePending = null;
+    });
+
+  return locatePending;
+}
+
+/** Se llama al arrancar para que el primer GPS del día no espere la descarga. */
+export async function warmLocateIndex() {
+  const { points } = await getLocateIndex();
+  return points.length;
+}
+
 /**
  * La estación más cercana determina la provincia del usuario. Se usa
  * `IDProvincia` del propio Ministerio en lugar del nombre ("PALMAS (LAS)"),
  * que no coincide con las claves de la app.
  */
 export async function nearestStation(lat, lng) {
-  const stations = await fetchNormalized("all");
+  const { points } = await getLocateIndex();
   let best = null;
   let bestKm = Infinity;
 
-  for (const station of stations) {
-    if (!station.lat || !station.lng || !station.provinceId) continue;
-    const km = haversineKm(lat, lng, station.lat, station.lng);
+  for (const point of points) {
+    const km = haversineKm(lat, lng, point.lat, point.lng);
     if (km < bestKm) {
       bestKm = km;
-      best = station;
+      best = point;
     }
   }
 
