@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { AccountSettings } from "../components/AccountSettings";
 import { PageShell } from "../components/AppChrome";
 import { PriceHistory } from "../components/PriceHistory";
 import {
@@ -23,6 +24,7 @@ const TABS = [
   { id: "alertas", label: "Alertas" },
   { id: "avisos", label: "Avisos" },
   { id: "historico", label: "Histórico" },
+  { id: "ajustes", label: "Ajustes" },
 ];
 
 export default function Account() {
@@ -225,7 +227,7 @@ export default function Account() {
         </div>
       )}
 
-      {loading && (
+      {loading && tab !== "ajustes" && (
         <p className="text-slate-600 dark:text-slate-300">Actualizando tu cuenta…</p>
       )}
 
@@ -524,6 +526,8 @@ export default function Account() {
           <PriceHistory points={provincePoints} />
         </section>
       )}
+
+      {tab === "ajustes" && <AccountSettings />}
     </PageShell>
   );
 }

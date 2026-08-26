@@ -61,6 +61,25 @@ export async function createSession(userId) {
   return token;
 }
 
+// Cambiar la contrasena tiene que echar a quien estuviera dentro con la
+// anterior. `keepToken` deja viva la sesion desde la que se hace el cambio para
+// no auto-expulsar a quien lo pide.
+export async function revokeSessions(userId, keepToken) {
+  const where = { userId };
+  if (keepToken) where.NOT = { tokenHash: hashToken(keepToken) };
+  const { count } = await prisma.session.deleteMany({ where });
+  return count;
+}
+
+// Las sesiones caducadas solo se borraban al tropezar con ellas en un login.
+// La tabla crecia sin techo; esto la mantiene al dia desde el job de fondo.
+export async function purgeExpiredSessions() {
+  const { count } = await prisma.session.deleteMany({
+    where: { expiresAt: { lt: new Date() } },
+  });
+  return count;
+}
+
 export async function destroySession(token) {
   if (!token || !prisma) return;
   await prisma.session.deleteMany({ where: { tokenHash: hashToken(token) } });
@@ -117,20 +136,37 @@ export async function attachUser(req, _res, next) {
   }
 }
 
-const loginHits = new Map();
-
+// Cada limitador lleva su propio recuento. Antes todos compartian un unico
+// Map de modulo, asi que los intentos de login gastaban el cupo de registro y
+// el de recuperar contraseña: bastaba con equivocarse de contraseña unas veces
+// para no poder ni pedir el enlace de recuperacion.
+//
+// El Map tampoco soltaba nunca las IPs que ya habian cumplido su ventana, y eso
+// crecia sin techo; el barrido las suelta como mucho una vez por minuto, que es
+// barato y acota la memoria al trafico real.
 export function rateLimit({ windowMs = 60_000, max = 8 } = {}) {
+  const hits = new Map();
+  let lastSweep = 0;
+
   return (req, res, next) => {
     const ip = req.ip || req.socket.remoteAddress || "unknown";
     const now = Date.now();
-    const recent = (loginHits.get(ip) || []).filter((t) => now - t < windowMs);
+
+    if (now - lastSweep >= 60_000) {
+      lastSweep = now;
+      for (const [key, times] of hits) {
+        if (times.every((t) => now - t >= windowMs)) hits.delete(key);
+      }
+    }
+
+    const recent = (hits.get(ip) || []).filter((t) => now - t < windowMs);
     if (recent.length >= max) {
       return res
         .status(429)
         .json({ error: "Demasiados intentos. Espera un minuto." });
     }
     recent.push(now);
-    loginHits.set(ip, recent);
+    hits.set(ip, recent);
     next();
   };
 }

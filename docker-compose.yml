@@ -22,10 +22,14 @@ services:
       - '172.17.0.1:3002:3002'
     environment:
       DATABASE_URL: postgresql://tanke:${POSTGRES_PASSWORD:-tanke}@db:5432/tanke
-      SESSION_SECRET: ${SESSION_SECRET:-tanke-tfm-change-me}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@tanke.dev}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-TankeAdmin2026}
       SNAPSHOT_PROVINCES: ${SNAPSHOT_PROVINCES:-35,38}
+      # Correo transaccional (recuperar contrasena). Sin SMTP_URL la app
+      # arranca igual: los emails se escriben en el log en vez de enviarse.
+      APP_URL: ${APP_URL:-https://tanke.javistudio.dev}
+      SMTP_URL: ${SMTP_URL:-}
+      EMAIL_FROM: ${EMAIL_FROM:-Tanke <no-reply@mail.javistudio.dev>}
     depends_on:
       db:
         condition: service_healthy

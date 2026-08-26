@@ -66,6 +66,23 @@ export function AuthProvider({ children }) {
         setUser(null);
         setFavoriteIds(new Set());
       },
+      // Para cuando el backend ya ha abierto la sesion por su cuenta
+      // (restablecer contraseña) y solo falta que el cliente se entere.
+      async adoptUser(nextUser) {
+        setUser(nextUser);
+        await refreshFavorites(nextUser);
+      },
+      // Editar el perfil no cambia la sesion: basta con refrescar los datos
+      // que se pintan en la cabecera.
+      updateUser(nextUser) {
+        setUser(nextUser);
+      },
+      // La cuenta ya no existe en el servidor; se limpia el estado local sin
+      // llamar a /logout, que devolveria 401.
+      clearSession() {
+        setUser(null);
+        setFavoriteIds(new Set());
+      },
       async toggleFavorite(station) {
         if (!user) return { needsAuth: true };
         const id = String(station.id);

@@ -15,6 +15,8 @@ Encuentra las gasolineras más baratas de España según combustible, depósito 
 - Modo oscuro; preferencias de búsqueda en `localStorage`
 - PWA instalable
 - Cuentas: favoritas, alertas de precio, avisos e histórico de Canarias
+- Recuperación de contraseña por email (enlace de un solo uso, caduca en 30 min)
+- Ajustes de cuenta: cambiar nombre, email y contraseña, descargar tus datos y darte de baja
 - Guías editables y panel `/admin` (usuarios, contenidos, ingesta)
 
 ## Stack
@@ -24,6 +26,7 @@ Encuentra las gasolineras más baratas de España según combustible, depósito 
 | Frontend | React 19 · Vite 7 · Tailwind CSS 4 · Leaflet · React Router |
 | API | Express (`server.js` + `server/`) |
 | Auth | Cookies httpOnly · bcryptjs · Prisma Session |
+| Email | Nodemailer sobre Resend SMTP (`mail.javistudio.dev`) |
 | BD | PostgreSQL 16 · Prisma |
 | Datos | API pública de carburantes (Ministerio) |
 | Infra | Docker · Traefik · GHCR · VPS Hetzner |
@@ -53,7 +56,7 @@ npm run lint
 
 - **Docker / VPS:** `tanke/Dockerfile` (Express en `:3002`) + `docker-compose.yml` (app + Postgres) → `tanke.javistudio.dev`
 - **CI:** GitHub Actions construye la imagen GHCR y despliega en el VPS
-- El VPS guarda su copia del compose en `/opt/gas-tracker`, con `POSTGRES_PASSWORD`, `SESSION_SECRET` y `ADMIN_PASSWORD` en el `.env` de al lado. Los datos viven en el volumen `gas-tracker_tanke_pg`, así que sobreviven a los despliegues
+- El VPS guarda su copia del compose en `/opt/gas-tracker`, con `POSTGRES_PASSWORD`, `ADMIN_PASSWORD` y `SMTP_URL` en el `.env` de al lado. Los datos viven en el volumen `gas-tracker_tanke_pg`, así que sobreviven a los despliegues
 - Las migraciones se aplican solas al arrancar el contenedor (`docker-entrypoint.sh`)
 
 ## Autor

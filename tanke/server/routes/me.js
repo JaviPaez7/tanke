@@ -309,4 +309,50 @@ export function registerMeRoutes(app) {
       });
     }),
   );
+
+  // Portabilidad (RGPD art. 20): todo lo que la cuenta ha generado, en un JSON
+  // que el usuario se descarga sin pasar por soporte.
+  app.get(
+    "/api/me/export",
+    requireDb,
+    requireAuth,
+    wrap(async (req, res) => {
+      const [favorites, alerts, reports] = await Promise.all([
+        prisma.favorite.findMany({
+          where: { userId: req.user.id },
+          orderBy: { createdAt: "asc" },
+        }),
+        prisma.priceAlert.findMany({
+          where: { userId: req.user.id },
+          orderBy: { createdAt: "asc" },
+        }),
+        prisma.stationReport.findMany({
+          where: { userId: req.user.id },
+          orderBy: { createdAt: "asc" },
+        }),
+      ]);
+
+      const stamp = new Date().toISOString().slice(0, 10);
+      res
+        .type("application/json")
+        .set("Content-Disposition", `attachment; filename="tanke-${stamp}.json"`)
+        .send(
+          JSON.stringify(
+            {
+              exportadoEl: new Date().toISOString(),
+              cuenta: {
+                nombre: req.user.name,
+                email: req.user.email,
+                altaEl: req.user.createdAt,
+              },
+              favoritas: favorites,
+              alertas: alerts,
+              avisos: reports,
+            },
+            null,
+            2,
+          ),
+        );
+    }),
+  );
 }

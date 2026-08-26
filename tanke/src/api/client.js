@@ -17,6 +17,15 @@ async function request(path, { method = "GET", body } = {}) {
 
 export const api = {
   me: () => request("/api/auth/me"),
+  forgot: (body) => request("/api/auth/forgot", { method: "POST", body }),
+  checkReset: (token) =>
+    request(`/api/auth/reset?token=${encodeURIComponent(token)}`),
+  reset: (body) => request("/api/auth/reset", { method: "POST", body }),
+  changePassword: (body) =>
+    request("/api/auth/password", { method: "POST", body }),
+  deleteAccount: (body) =>
+    request("/api/auth/me", { method: "DELETE", body }),
+  exportUrl: () => "/api/me/export",
   login: (body) => request("/api/auth/login", { method: "POST", body }),
   register: (body) => request("/api/auth/register", { method: "POST", body }),
   logout: () => request("/api/auth/logout", { method: "POST" }),

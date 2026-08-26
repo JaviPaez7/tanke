@@ -92,6 +92,14 @@ export default function Login() {
             onChange={(e) => setPassword(e.target.value)}
           />
         </Field>
+        <p className="-mt-2 text-right">
+          <Link
+            to="/recuperar"
+            className="text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400"
+          >
+            ¿Has olvidado la contraseña?
+          </Link>
+        </p>
         <PrimaryButton type="submit" disabled={busy} className="w-full">
           {busy ? "Entrando…" : "Iniciar sesión"}
         </PrimaryButton>

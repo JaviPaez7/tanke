@@ -3,6 +3,7 @@ import {
   utcDateOnly,
   warmLocateIndex,
 } from "./lib/stations.js";
+import { purgeExpiredSessions } from "./lib/auth.js";
 
 function snapshotProvinceIds() {
   const raw = process.env.SNAPSHOT_PROVINCES || "35,38";
@@ -90,6 +91,23 @@ export async function runSnapshot(prisma, { force = false } = {}) {
   }
 }
 
+// Sesiones caducadas y enlaces de recuperacion ya gastados no le sirven a
+// nadie: sin esto las dos tablas solo crecen.
+async function purge(prisma) {
+  const sessions = await purgeExpiredSessions();
+  const { count: resets } = await prisma.passwordReset.deleteMany({
+    where: {
+      OR: [
+        { expiresAt: { lt: new Date() } },
+        { usedAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+      ],
+    },
+  });
+  if (sessions || resets) {
+    console.log(`Tanke: purgadas ${sessions} sesiones y ${resets} enlaces caducados`);
+  }
+}
+
 export function startBackgroundJobs(prisma) {
   const tick = () => {
     runSnapshot(prisma).catch((error) => {
@@ -97,6 +115,9 @@ export function startBackgroundJobs(prisma) {
     });
     warmLocateIndex().catch((error) => {
       console.error("Locate index:", error.message);
+    });
+    purge(prisma).catch((error) => {
+      console.error("Purga:", error.message);
     });
   };
 
