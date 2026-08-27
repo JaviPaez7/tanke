@@ -54,6 +54,7 @@ export async function runSnapshot(prisma, { force = false } = {}) {
             priceDiesel: station.priceDiesel || null,
             priceDieselPlus: station.priceDieselPlus || null,
             priceGLP: station.priceGLP || null,
+            priceCNG: station.priceCNG || null,
             capturedDate,
           },
           update: {
@@ -64,6 +65,7 @@ export async function runSnapshot(prisma, { force = false } = {}) {
             priceDiesel: station.priceDiesel || null,
             priceDieselPlus: station.priceDieselPlus || null,
             priceGLP: station.priceGLP || null,
+            priceCNG: station.priceCNG || null,
           },
         });
         stations += 1;

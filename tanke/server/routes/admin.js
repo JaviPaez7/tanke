@@ -2,6 +2,8 @@ import { prisma, requireDb } from "../db.js";
 import { requireAdmin, slugify, wrap } from "../lib/auth.js";
 import { runSnapshot } from "../jobs.js";
 
+const REPORT_STATES = ["pending", "reviewed", "dismissed"];
+
 function articleAdmin(article) {
   return {
     ...article,
@@ -178,7 +180,12 @@ export function registerAdminRoutes(app) {
     requireDb,
     requireAdmin,
     wrap(async (req, res) => {
-      await prisma.article.delete({ where: { id: req.params.id } });
+      const { count } = await prisma.article.deleteMany({
+        where: { id: req.params.id },
+      });
+      if (count === 0) {
+        return res.status(404).json({ error: "Artículo no encontrado." });
+      }
       res.json({ ok: true });
     }),
   );
@@ -212,7 +219,12 @@ export function registerAdminRoutes(app) {
     requireDb,
     requireAdmin,
     wrap(async (req, res) => {
-      await prisma.category.delete({ where: { id: req.params.id } });
+      const { count } = await prisma.category.deleteMany({
+        where: { id: req.params.id },
+      });
+      if (count === 0) {
+        return res.status(404).json({ error: "Categoría no encontrada." });
+      }
       res.json({ ok: true });
     }),
   );
@@ -223,6 +235,9 @@ export function registerAdminRoutes(app) {
     requireAdmin,
     wrap(async (req, res) => {
       const status = String(req.query.status || "");
+      if (status && !REPORT_STATES.includes(status)) {
+        return res.status(400).json({ error: "Estado no válido." });
+      }
       const reports = await prisma.stationReport.findMany({
         where: status ? { status } : undefined,
         include: {
@@ -241,7 +256,7 @@ export function registerAdminRoutes(app) {
     requireAdmin,
     wrap(async (req, res) => {
       const status = String(req.body?.status || "");
-      if (!["pending", "reviewed", "dismissed"].includes(status)) {
+      if (!REPORT_STATES.includes(status)) {
         return res.status(400).json({ error: "Estado no válido." });
       }
       const report = await prisma.stationReport.update({

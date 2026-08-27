@@ -30,6 +30,21 @@ services:
       APP_URL: ${APP_URL:-https://tanke.javistudio.dev}
       SMTP_URL: ${SMTP_URL:-}
       EMAIL_FROM: ${EMAIL_FROM:-Tanke <no-reply@mail.javistudio.dev>}
+    # Sin esto Docker no sabia si la app seguia viva: un proceso Node colgado
+    # se quedaba en "Up" y Traefik le seguia mandando trafico. La imagen es
+    # node-slim, asi que la sonda va con el propio node en vez de curl.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3002/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
     depends_on:
       db:
         condition: service_healthy

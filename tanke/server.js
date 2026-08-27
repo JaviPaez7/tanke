@@ -1,6 +1,7 @@
 // Servidor de produccion: estatico, proxy API, landings SEO y sitemap.
 import "dotenv/config";
 import express from "express";
+import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import {
@@ -136,8 +137,40 @@ app.get("/guia/ahorrar-gasolina", (_req, res) => {
 
 app.use(express.static(distDir, { index: false }));
 
-app.use((_req, res) => {
-  res.sendFile(path.join(distDir, "index.html"));
+// Rutas de cuenta: no tienen nada que aportar en Google y algunas no deberian
+// aparecer nunca. `/restablecer` lleva el token en la URL, y `/cuenta` y
+// `/admin` solo enseñan un formulario de login a quien no ha entrado. El
+// header enlaza a /login, asi que Google llega solo si no se le dice que no.
+const NOINDEX_PATHS = new Set([
+  "/login",
+  "/registro",
+  "/recuperar",
+  "/restablecer",
+  "/cuenta",
+  "/admin",
+]);
+
+// Se marca en el HTML servido, no desde React: Googlebot indexa antes de
+// ejecutar el JS y una meta que aparece despues llega tarde.
+let indexHtml = null;
+let noindexHtml = null;
+
+function loadShell() {
+  if (indexHtml) return;
+  indexHtml = fs.readFileSync(path.join(distDir, "index.html"), "utf8");
+  noindexHtml = indexHtml.replace(
+    /<meta name="robots" content="[^"]*"\s*\/?>/,
+    '<meta name="robots" content="noindex,nofollow" />',
+  );
+}
+
+app.use((req, res) => {
+  loadShell();
+  const privada = NOINDEX_PATHS.has(req.path.replace(/\/+$/, "") || "/");
+  res
+    .type("html")
+    .set("Cache-Control", HTML_CACHE)
+    .send(privada ? noindexHtml : indexHtml);
 });
 
 function notFoundHtml() {

@@ -5,3 +5,6 @@ dist
 .env.*
 !.env.example
 *.md
+
+__tests__
+*.test.js

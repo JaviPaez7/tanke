@@ -155,6 +155,7 @@ model PriceSnapshot {
   priceDiesel     Float?
   priceDieselPlus Float?
   priceGLP        Float?
+  priceCNG        Float?
   capturedDate    DateTime @db.Date
   createdAt       DateTime @default(now())
 

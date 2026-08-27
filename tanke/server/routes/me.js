@@ -287,6 +287,7 @@ export function registerMeRoutes(app) {
           priceDiesel: true,
           priceDieselPlus: true,
           priceGLP: true,
+          priceCNG: true,
         },
         _min: {
           price95: true,
@@ -303,6 +304,7 @@ export function registerMeRoutes(app) {
           avgDiesel: row._avg.priceDiesel,
           avgDieselPlus: row._avg.priceDieselPlus,
           avgGLP: row._avg.priceGLP,
+          avgCNG: row._avg.priceCNG,
           min95: row._min.price95,
           minDiesel: row._min.priceDiesel,
         })),
