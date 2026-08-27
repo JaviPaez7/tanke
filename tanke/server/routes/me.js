@@ -1,6 +1,7 @@
 import { prisma, requireDb } from "../db.js";
 import { FUELS, fetchNormalized } from "../lib/stations.js";
 import { requireAuth, wrap } from "../lib/auth.js";
+import { cheapestFor } from "../lib/alerts.js";
 
 const REPORT_TYPES = new Set(["horario", "cerrada", "precio", "otro"]);
 const FUEL_IDS = new Set(FUELS.map((f) => f.id));
@@ -189,18 +190,16 @@ export function registerMeRoutes(app) {
         }
       }
 
+      // Misma función que usa el job que manda los correos: si divergieran,
+      // la cuenta diría una cosa y el email otra.
       const status = alerts.map((alert) => {
         const stations = byProvince.get(alert.provinceId) || [];
-        const filtered = alert.municipality
-          ? stations.filter((s) => s.municipality === alert.municipality)
-          : stations;
-        const prices = filtered
-          .map((s) => s[alert.fuel])
-          .filter((p) => typeof p === "number" && p > 0);
-        const currentMin = prices.length ? Math.min(...prices) : null;
+        const best = cheapestFor(stations, alert);
+        const currentMin = best ? best[alert.fuel] : null;
         return {
           ...alert,
           currentMin,
+          stationName: best?.name || null,
           triggered: currentMin != null && currentMin <= alert.threshold,
         };
       });

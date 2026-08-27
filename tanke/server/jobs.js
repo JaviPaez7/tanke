@@ -4,6 +4,7 @@ import {
   warmLocateIndex,
 } from "./lib/stations.js";
 import { purgeExpiredSessions } from "./lib/auth.js";
+import { runAlerts } from "./lib/alerts.js";
 
 function snapshotProvinceIds() {
   const raw = process.env.SNAPSHOT_PROVINCES || "35,38";
@@ -121,6 +122,15 @@ export function startBackgroundJobs(prisma) {
     purge(prisma).catch((error) => {
       console.error("Purga:", error.message);
     });
+    runAlerts(prisma)
+      .then(({ checked, notified, users }) => {
+        if (notified) {
+          console.log(`Tanke: ${notified} alertas avisadas a ${users} usuarios (de ${checked})`);
+        }
+      })
+      .catch((error) => {
+        console.error("Alertas:", error.message);
+      });
   };
 
   setTimeout(tick, 12_000);

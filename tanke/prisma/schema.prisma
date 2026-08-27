@@ -76,18 +76,23 @@ model Favorite {
 }
 
 model PriceAlert {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   provinceId   String
   province     String
-  municipality String   @default("")
+  municipality String    @default("")
   fuel         String
   threshold    Float
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
+  active       Boolean   @default(true)
+  // Cuándo se avisó por última vez, para no repetir el mismo correo cada hora
+  // mientras el precio siga por debajo del tope.
+  notifiedAt   DateTime?
+  notifiedPrice Float?
+  createdAt    DateTime  @default(now())
 
   @@index([userId, active])
+  @@index([active, notifiedAt])
 }
 
 model Category {

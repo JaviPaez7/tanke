@@ -6,14 +6,7 @@ const GOV_URL_ALL =
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
-export const FUELS = [
-  { id: "price95", label: "Gasolina 95" },
-  { id: "price98", label: "Gasolina 98" },
-  { id: "priceDiesel", label: "Diésel" },
-  { id: "priceDieselPlus", label: "Diésel+" },
-  { id: "priceGLP", label: "GLP" },
-  { id: "priceCNG", label: "GNC" },
-];
+export { FUELS } from "../../shared/fuels.js";
 
 function num(value) {
   return parseFloat(String(value || "0").replace(",", ".")) || 0;

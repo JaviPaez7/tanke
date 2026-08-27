@@ -15,6 +15,7 @@ Encuentra las gasolineras más baratas de España según combustible, depósito 
 - Modo oscuro; preferencias de búsqueda en `localStorage`
 - PWA instalable
 - Cuentas: favoritas, alertas de precio, avisos e histórico de Canarias
+- Alertas de precio que avisan por email cuando una gasolinera baja de tu tope
 - Recuperación de contraseña por email (enlace de un solo uso, caduca en 30 min)
 - Ajustes de cuenta: cambiar nombre, email y contraseña, descargar tus datos y darte de baja
 - Guías editables y panel `/admin` (usuarios, contenidos, ingesta)
@@ -50,6 +51,7 @@ Admin por defecto: `admin@tanke.dev` / `TankeAdmin2026`.
 ```bash
 npm run build
 npm run lint
+npm test
 ```
 
 ## Despliegue
@@ -58,6 +60,7 @@ npm run lint
 - **CI:** GitHub Actions construye la imagen GHCR y despliega en el VPS
 - El VPS guarda su copia del compose en `/opt/gas-tracker`, con `POSTGRES_PASSWORD`, `ADMIN_PASSWORD` y `SMTP_URL` en el `.env` de al lado. Los datos viven en el volumen `gas-tracker_tanke_pg`, así que sobreviven a los despliegues
 - Las migraciones se aplican solas al arrancar el contenedor (`docker-entrypoint.sh`)
+- Healthcheck en `/api/health`; responde 200 mientras el proceso pueda atender
 
 ## Autor
 

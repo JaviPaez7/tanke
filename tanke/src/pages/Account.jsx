@@ -17,7 +17,7 @@ import {
   TextInput,
 } from "../components/ui";
 import { FUELS, fuelLabel } from "../data/fuels";
-import { formatPrice } from "../lib/format";
+import { formatDate, formatPrice } from "../lib/format";
 
 const TABS = [
   { id: "favoritas", label: "Favoritas" },
@@ -309,6 +309,11 @@ export default function Account() {
             className="bg-white dark:bg-slate-900 rounded-3xl p-5 space-y-3"
           >
             <h2 className="font-black">Nueva alerta</h2>
+            <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+              Te escribimos a <span className="font-bold">{user.email}</span>{" "}
+              cuando alguna gasolinera de la zona baje de tu tope. Como mucho un
+              correo al día por alerta.
+            </p>
             <Field label="Provincia">
               <SelectInput
                 value={alertForm.provinceId}
@@ -344,7 +349,7 @@ export default function Account() {
                   setAlertForm((f) => ({ ...f, fuel: e.target.value }))
                 }
               >
-                {FUELS.map((fuel) => (
+                {(meta.fuels || FUELS).map((fuel) => (
                   <option key={fuel.id} value={fuel.id}>
                     {fuel.label}
                   </option>
@@ -386,6 +391,13 @@ export default function Account() {
                     ` · ahora ${formatPrice(alert.currentMin)}`}
                   {!alert.active && " · pausada"}
                 </p>
+                {alert.notifiedAt && (
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Último aviso: {formatDate(alert.notifiedAt)}
+                    {alert.notifiedPrice != null &&
+                      ` a ${formatPrice(alert.notifiedPrice)}`}
+                  </p>
+                )}
                 <div className="flex gap-2 mt-3">
                   <GhostButton
                     type="button"

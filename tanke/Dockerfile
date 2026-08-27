@@ -19,6 +19,7 @@ RUN npm ci --omit=dev && npx prisma generate
 COPY server.js ./
 COPY server ./server
 COPY seo ./seo
+COPY shared ./shared
 COPY docker-entrypoint.sh ./
 COPY --from=build /app/dist ./dist
 RUN chmod +x docker-entrypoint.sh
