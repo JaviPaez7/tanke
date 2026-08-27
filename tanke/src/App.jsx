@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { getAllGasStations } from "./services/gasStations";
 import { api } from "./api/client";
 import {
@@ -6,6 +6,7 @@ import {
   resolveProvinceSlug,
   slugify,
 } from "./data/seo";
+import { provinceIds } from "../seo/provinces.js";
 import {
   ArrowUpIcon,
   ArrowUpRightIcon,
@@ -19,91 +20,19 @@ import {
   XIcon,
 } from "./icons";
 import { ICON_PATHS } from "./iconPaths";
+import { brandFor } from "./data/brands";
 import { AppChrome } from "./components/AppChrome";
 import { FavoriteButton } from "./components/FavoriteButton";
 import { ReportButton } from "./components/ReportButton";
 import { StationListSkeleton } from "./components/StationSkeleton";
 
-// IMPORTACIONES DEL MAPA
-import {
-  MapContainer,
-  TileLayer,
-  Marker,
-  Popup,
-  useMap,
-  Circle,
-} from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
+// El mapa se carga solo cuando se pide esa vista: Leaflet y su CSS son el
+// bloque más pesado del proyecto y la mayoría de visitas no salen de la lista.
+const StationMap = lazy(() => import("./components/StationMap"));
 
-// ARREGLO PARA LOS ICONOS DEL MAPA
-import icon from "leaflet/dist/images/marker-icon.png";
-import iconShadow from "leaflet/dist/images/marker-shadow.png";
-
-let DefaultIcon = L.icon({
-  iconUrl: icon,
-  shadowUrl: iconShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-});
-L.Marker.prototype.options.icon = DefaultIcon;
-
-// DATOS DE PROVINCIAS
-const provinceIds = {
-  Alava: "01",
-  Albacete: "02",
-  Alicante: "03",
-  Almeria: "04",
-  Avila: "05",
-  Badajoz: "06",
-  "Islas Baleares": "07",
-  Barcelona: "08",
-  Burgos: "09",
-  Caceres: "10",
-  Cadiz: "11",
-  Castellon: "12",
-  "Ciudad Real": "13",
-  Cordoba: "14",
-  "Coruña (A)": "15",
-  Cuenca: "16",
-  Girona: "17",
-  Granada: "18",
-  Guadalajara: "19",
-  Guipuzcoa: "20",
-  Huelva: "21",
-  Huesca: "22",
-  Jaen: "23",
-  Leon: "24",
-  Lleida: "25",
-  "Rioja (La)": "26",
-  Lugo: "27",
-  Madrid: "28",
-  Malaga: "29",
-  Murcia: "30",
-  Navarra: "31",
-  Ourense: "32",
-  Asturias: "33",
-  Palencia: "34",
-  "Las Palmas": "35",
-  Pontevedra: "36",
-  Salamanca: "37",
-  "Santa Cruz de Tenerife": "38",
-  Cantabria: "39",
-  Segovia: "40",
-  Sevilla: "41",
-  Soria: "42",
-  Tarragona: "43",
-  Teruel: "44",
-  Toledo: "45",
-  Valencia: "46",
-  Valladolid: "47",
-  Vizcaya: "48",
-  Zamora: "49",
-  Zaragoza: "50",
-  Ceuta: "51",
-  Melilla: "52",
-};
+// Las 52 provincias vivían escritas dos veces, aquí y en seo/provinces.js.
+// Coincidían, pero nada lo garantizaba: ahora el buscador y las landings leen
+// la misma tabla.
 
 // El Ministerio devuelve `IDProvincia`, no el nombre que usa la app
 // ("PALMAS (LAS)" frente a "Las Palmas"), así que la traducción va por ID.
@@ -157,88 +86,6 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
       Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
-}
-
-const brandLogos = {
-  repsol: "/repsol.jpg",
-  cepsa: "/moeve.png",
-  moeve: "/moeve.png",
-  pcan: "/pcan.jpg",
-  shell: "/shell.png",
-  bp: "/bp.png",
-  disa: "/disa.jpg",
-  tgas: "/tgas.jpg",
-  galp: "/galp.png",
-  h2exagon: "/h2.png",
-  plenergy: "/plenergy.png",
-  plenoil: "/plenergy.png",
-  petroprix: "/petroprix.jpg",
-  canary: "/canaryoil.webp",
-  santana: "/santana.webp",
-  spl: "/spl.png",
-  ballenoil: "/ballenoil.svg",
-  alcampo: "/alcampo.jpg",
-};
-
-const createPriceIcon = (price, avg, isCheapest, stationName) => {
-  let colorClass = "bg-slate-600";
-  if (price > 0 && avg > 0) {
-    if (price < avg - 0.01) colorClass = "bg-green-600";
-    else if (price > avg + 0.01) colorClass = "bg-red-600";
-    else colorClass = "bg-orange-500";
-  }
-
-  if (isCheapest)
-    colorClass = "bg-yellow-500 border-yellow-300 marker-cheapest";
-
-  const nameLower = stationName.toLowerCase();
-  const brandKey = Object.keys(brandLogos).find((key) =>
-    nameLower.includes(key),
-  );
-  const logoUrl = brandKey ? brandLogos[brandKey] : null;
-
-  return L.divIcon({
-    className: "custom-price-marker",
-    html: `
-      <div class="flex flex-col items-center relative transition-transform hover:scale-110">
-        ${
-          isCheapest
-            ? `<span class="mb-[-5px] drop-shadow-md z-30 text-yellow-400">
-                 <svg viewBox="0 0 256 256" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="${ICON_PATHS.crown}"/></svg>
-               </span>`
-            : ""
-        }
-        
-        ${
-          logoUrl
-            ? `
-          <div class="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-white shadow-md border border-slate-200 z-20 flex items-center justify-center p-0.5 overflow-hidden">
-            <img src="${logoUrl}" class="w-full h-full object-contain" />
-          </div>
-        `
-            : ""
-        }
-
-        <div class="${colorClass} text-white text-[10px] font-black px-1.5 py-0.5 rounded-lg shadow-lg border-2 border-white flex items-center justify-center whitespace-nowrap">
-          ${price > 0 ? formatPrice(price) : "--"}&nbsp;€
-        </div>
-        <div class="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[6px] border-t-${isCheapest ? "yellow-500" : colorClass.split("-")[1] + "-600"}"></div>
-      </div>
-    `,
-    iconSize: [45, 35],
-    iconAnchor: [22, 35],
-  });
-};
-
-function RecenterMap({ stations }) {
-  const map = useMap();
-  useEffect(() => {
-    if (stations.length > 0) {
-      const first = stations[0];
-      map.setView([first.lat, first.lng], 10);
-    }
-  }, [stations, map]);
-  return null;
 }
 
 // Tope de marcadores según el dispositivo. Se escucha el cambio del media
@@ -368,6 +215,7 @@ function App() {
   const [allStationsInProvince, setAllStationsInProvince] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
+  const [staleNotice, setStaleNotice] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [userLocation, setUserLocation] = useState(null);
   const [geoError, setGeoError] = useState(null);
@@ -399,24 +247,38 @@ function App() {
   // respuesta que llega tarde debe descartarse en vez de pisar a la nueva.
   const lastRequestRef = useRef(0);
 
+  // Se guarda la última provincia pedida para que el botón de reintentar sepa
+  // qué volver a cargar sin depender del estado del selector.
+  const lastProvinceIdRef = useRef(null);
+
   const loadProvinceData = async (id) => {
     const requestId = ++lastRequestRef.current;
+    lastProvinceIdRef.current = id;
     setLoading(true);
     setErrorMsg("");
+    setStaleNotice("");
     try {
-      const data = await getAllGasStations(id);
+      const { stations: data, stale } = await getAllGasStations(id);
       if (requestId !== lastRequestRef.current) return; // obsoleta
-      if (!data || data.length === 0) {
-        setErrorMsg("No hay datos disponibles o falló la conexión.");
+
+      if (data.length === 0) {
+        // Ya no se confunde con un fallo de red: si la petición fue bien y
+        // viene vacía, es que esa provincia no tiene estaciones que mostrar.
+        setErrorMsg("");
         setAllStationsInProvince([]);
       } else {
         const sortedData = [...data].sort((a, b) => a.price95 - b.price95);
         setAllStationsInProvince(sortedData);
+        if (stale) {
+          setStaleNotice(
+            "El Ministerio no responde ahora mismo. Te enseñamos los últimos precios que pudimos leer.",
+          );
+        }
       }
     } catch (err) {
       console.error(err);
       if (requestId !== lastRequestRef.current) return;
-      setErrorMsg("Error cargando datos.");
+      setErrorMsg(err.message || "No hemos podido cargar las gasolineras.");
     }
     if (requestId === lastRequestRef.current) setLoading(false);
   };
@@ -990,14 +852,34 @@ function App() {
         </div>
 
         {/* Solo avisamos si de verdad no hay nada que mostrar: si un fetch falló
-            pero otro trajo datos, el aviso contradecía a la lista de abajo. */}
+            pero otro trajo datos, el aviso contradecía a la lista de abajo.
+            Antes no había salida del error salvo recargar la página. */}
         {errorMsg && stations.length === 0 && (
           <div
-            className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
+            className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-red-800 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200"
             role="alert"
           >
-            <strong className="font-bold">Error: </strong>
-            <span className="block sm:inline">{errorMsg}</span>
+            <span className="min-w-0 flex-1 font-bold">{errorMsg}</span>
+            <button
+              type="button"
+              onClick={() =>
+                loadProvinceData(lastProvinceIdRef.current ?? provinceIds[selectedProvince])
+              }
+              className="h-9 shrink-0 rounded-lg bg-red-600 px-3 text-sm font-bold text-white transition-colors hover:bg-red-700 cursor-pointer"
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
+
+        {/* Los precios son buenos, solo que no son de hace un minuto. Decirlo
+            es mejor que enseñarlos como si acabaran de leerse. */}
+        {staleNotice && stations.length > 0 && (
+          <div
+            className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200"
+            role="status"
+          >
+            {staleNotice}
           </div>
         )}
 
@@ -1046,11 +928,7 @@ function App() {
               const total = price * tankSize;
               const savings = (currentAverage - price) * tankSize;
 
-              const nameLower = station.name.toLowerCase();
-              const brandKey = Object.keys(brandLogos).find((key) =>
-                nameLower.includes(key),
-              );
-              const logoUrl = brandKey ? brandLogos[brandKey] : null;
+              const brand = brandFor(station.name);
 
               return (
                 <div
@@ -1058,11 +936,11 @@ function App() {
                   className="h-full flex flex-col bg-white dark:bg-slate-900 rounded-4xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-xl dark:hover:shadow-indigo-900/20 transition-all duration-300 group relative"
                 >
                   <div className="mb-4 flex items-start gap-3">
-                    {logoUrl && (
+                    {brand && (
                       <div className="flex-shrink-0 w-12 h-12 rounded-2xl bg-slate-50 dark:bg-white border border-slate-100 dark:border-slate-700 shadow-sm p-2 flex items-center justify-center overflow-hidden">
                         <img
-                          src={logoUrl}
-                          alt={brandKey}
+                          src={brand.url}
+                          alt={brand.name}
                           className="w-full h-full object-contain"
                         />
                       </div>
@@ -1177,114 +1055,25 @@ function App() {
               para afinar.
             </p>
           )}
-          <div className="h-150 w-full rounded-3xl overflow-hidden shadow-xl border border-slate-200 dark:border-slate-800 z-0 relative">
-            <MapContainer
-              center={[40.416, -3.703]}
-              zoom={6}
-              scrollWheelZoom={true}
-              className="h-full w-full"
-            >
-              {/* MAGIA DEL MAPA: Si es dark mode, cargamos las tiles oscuras de CartoDB */}
-              <TileLayer
-                attribution='© <a href="https://carto.com/attributions">CARTO</a>'
-                url={
-                  isDark
-                    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" // 🌑 Modo Noche
-                    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" // ☀️ Modo Día
-                }
+          <Suspense
+            fallback={
+              <div
+                role="status"
+                aria-label="Cargando el mapa"
+                className="h-150 w-full rounded-3xl border border-slate-200 bg-slate-100 motion-safe:animate-pulse dark:border-slate-800 dark:bg-slate-900"
               />
-
-              <RecenterMap stations={stations} />
-
-              {userLocation && (
-                <>
-                  <Circle
-                    center={[userLocation.lat, userLocation.lng]}
-                    radius={searchRadius * 1000}
-                    pathOptions={{
-                      color: "#4f46e5",
-                      fillColor: "#4f46e5",
-                      fillOpacity: 0.1,
-                      weight: 2,
-                      dashArray: "8, 8",
-                    }}
-                  />
-                  <Marker position={[userLocation.lat, userLocation.lng]}>
-                    <Popup>
-                      <div className="text-center font-bold text-indigo-600">
-                        <span className="inline-flex items-center gap-1">
-                          <MapPinIcon className="w-4 h-4 shrink-0" />
-                          Estás aquí
-                        </span>
-                        <br />
-                        <span className="text-xs text-slate-500 font-normal">
-                          Radio: {searchRadius} km
-                        </span>
-                      </div>
-                    </Popup>
-                  </Marker>
-                </>
-              )}
-
-              {(() => {
-                const visibleStations = stations.slice(0, mapMarkerLimit);
-                const currentPrices = visibleStations
-                  .map((s) => getPriceForStation(s))
-                  .filter((p) => p > 0);
-
-                const minPrice =
-                  currentPrices.length > 0 ? Math.min(...currentPrices) : 0;
-
-                return visibleStations.map((station) => {
-                  const stationPrice = getPriceForStation(station);
-                  const isCheapest =
-                    stationPrice > 0 && stationPrice === minPrice;
-
-                  return (
-                    <Marker
-                      key={station.id}
-                      position={[station.lat, station.lng]}
-                      icon={createPriceIcon(
-                        stationPrice,
-                        currentAverage,
-                        isCheapest,
-                        station.name,
-                      )}
-                      zIndexOffset={isCheapest ? 1000 : 0}
-                    >
-                      <Popup>
-                        <div className="text-center min-w-[120px]">
-                          {isCheapest && (
-                            <div className="flex items-center justify-center gap-1 text-xs font-bold text-yellow-600 mb-1">
-                              <CrownIcon className="w-3.5 h-3.5 shrink-0" />
-                              ¡LA MÁS BARATA!
-                            </div>
-                          )}
-                          <h3 className="font-bold text-slate-800">
-                            {station.name}
-                          </h3>
-                          <p className="text-xs text-slate-500">
-                            {station.address}
-                          </p>
-                          <div className="mt-2 bg-indigo-600 text-white font-black py-1 px-2 rounded-lg text-lg">
-                            {formatPrice(stationPrice)} €
-                          </div>
-                          <a
-                            href={`https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block mt-2 text-indigo-600 font-bold text-xs underline"
-                          >
-                            Cómo llegar
-                          </a>
-                        </div>
-                      </Popup>
-                    </Marker>
-                  );
-                });
-              })()}
-            </MapContainer>
-          </div>
+            }
+          >
+            <StationMap
+              stations={stations}
+              markerLimit={mapMarkerLimit}
+              isDark={isDark}
+              userLocation={userLocation}
+              searchRadius={searchRadius}
+              currentAverage={currentAverage}
+              getPriceForStation={getPriceForStation}
+            />
+          </Suspense>
           </>
         )}
       </div>

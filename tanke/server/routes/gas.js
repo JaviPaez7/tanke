@@ -1,4 +1,4 @@
-import { fetchRawGas, nearestStation } from "../lib/stations.js";
+import { fetchStationsCached, nearestStation } from "../lib/stations.js";
 
 // Más allá de esto el usuario no está en España (o el dato no sirve para
 // elegir provincia) y es mejor no tocar su selector.
@@ -33,18 +33,24 @@ export function registerGasRoute(app) {
     }
   });
 
+  // Antes se reenviaba el JSON crudo del Ministerio: 41 campos por estación de
+  // los que el cliente usaba 13 y tiraba 28, y sin pasar por la caché (cada
+  // visitante abría su propia llamada al Ministerio). Ahora sale normalizado y
+  // cacheado, y si el origen falla se sirve la copia anterior marcada `stale`
+  // en vez de dejar la pantalla vacía.
   app.get("/api/gas", async (req, res) => {
-    const id = req.query.id || "35";
+    const id = String(req.query.id || "35");
 
     try {
+      const { stations, fetchedAt, stale } = await fetchStationsCached(id);
       res.setHeader("Cache-Control", "s-maxage=600, stale-while-revalidate=300");
-      res.setHeader("Access-Control-Allow-Origin", "*");
-
-      const data = await fetchRawGas(id);
-      res.status(200).json(data);
+      res.json({ stations, fetchedAt, stale });
     } catch (error) {
-      console.error("Error:", error.message);
-      res.status(500).json({ error: "Saturacion en el Ministerio o timeout" });
+      console.error("Gas error:", error.message);
+      // 502: el fallo es del origen, no nuestro.
+      res.status(502).json({
+        error: "El Ministerio no responde ahora mismo. Inténtalo en un minuto.",
+      });
     }
   });
 }

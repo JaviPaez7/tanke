@@ -1,45 +1,30 @@
-import axios from "axios";
-
 const API_URL = "/api/gas";
 
+/**
+ * Estaciones de una provincia. El servidor ya las manda normalizadas, así que
+ * aquí no hay que traducir los 41 campos del Ministerio: antes llegaba el JSON
+ * crudo y el navegador tiraba 28 de cada estación.
+ *
+ * Los errores se propagan a propósito. Antes se devolvía `[]` al fallar, y la
+ * pantalla no podía distinguir "esta provincia no tiene datos" de "se ha caído
+ * la conexión", así que el aviso tenía que decir las dos cosas a la vez y no
+ * había forma de ofrecer un reintento.
+ */
 export const getAllGasStations = async (provinceId = "35") => {
-  try {
-    const response = await axios.get(`${API_URL}?id=${provinceId}`);
-    const rawData = response.data.ListaEESSPrecio || response.data;
-    if (!Array.isArray(rawData)) return [];
+  const response = await fetch(`${API_URL}?id=${encodeURIComponent(provinceId)}`, {
+    headers: { Accept: "application/json" },
+  });
 
-    return rawData
-      .map((station) => ({
-        id: station["IDEESS"],
-        name: station["Rótulo"],
-        address: station["Dirección"],
-        municipality: station["Municipio"] || "",
-        province: station["Provincia"] || "",
-        schedule: station["Horario"] || "Sin horario",
-        priceDiesel: parseFloat(
-          station["Precio Gasoleo A"]?.replace(",", ".") || 0,
-        ),
-        priceDieselPlus: parseFloat(
-          station["Precio Nuevo Gasoleo A"]?.replace(",", ".") || 0,
-        ),
-        price95: parseFloat(
-          station["Precio Gasolina 95 E5"]?.replace(",", ".") || 0,
-        ),
-        price98: parseFloat(
-          station["Precio Gasolina 98 E5"]?.replace(",", ".") || 0,
-        ),
-        priceGLP: parseFloat(
-          station["Precio Gases licuados del petróleo"]?.replace(",", ".") || 0,
-        ),
-        priceCNG: parseFloat(
-          station["Precio Gas Natural Comprimido"]?.replace(",", ".") || 0,
-        ),
-        lat: parseFloat(station["Latitud"]?.replace(",", ".") || 0),
-        lng: parseFloat(station["Longitud (WGS84)"]?.replace(",", ".") || 0),
-      }))
-      .filter((s) => s.price95 > 0 || s.priceDiesel > 0);
-  } catch (error) {
-    console.error("Error conectando con la API de Tanke:", error);
-    return [];
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || "No hemos podido cargar las gasolineras.");
   }
+
+  return {
+    stations: Array.isArray(data.stations) ? data.stations : [],
+    // `stale` = el Ministerio no respondía y el servidor ha servido su copia
+    // anterior. Los precios valen, pero conviene decirlo.
+    stale: Boolean(data.stale),
+    fetchedAt: data.fetchedAt || null,
+  };
 };

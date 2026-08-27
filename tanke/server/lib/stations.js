@@ -12,6 +12,7 @@ export const FUELS = [
   { id: "priceDiesel", label: "Diésel" },
   { id: "priceDieselPlus", label: "Diésel+" },
   { id: "priceGLP", label: "GLP" },
+  { id: "priceCNG", label: "GNC" },
 ];
 
 function num(value) {
@@ -55,6 +56,7 @@ export function normalizeStations(rawData) {
       price95: num(station["Precio Gasolina 95 E5"]),
       price98: num(station["Precio Gasolina 98 E5"]),
       priceGLP: num(station["Precio Gases licuados del petróleo"]),
+      priceCNG: num(station["Precio Gas Natural Comprimido"]),
       lat: num(station.Latitud),
       lng: num(station["Longitud (WGS84)"]),
     }))
@@ -62,17 +64,59 @@ export function normalizeStations(rawData) {
 }
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
-const cache = new Map();
+// Cuanto aguantamos sirviendo datos viejos si el Ministerio no responde. Un
+// precio de hace unas horas sigue siendo util; una pantalla de error, no.
+const STALE_MAX_MS = 6 * 60 * 60 * 1000;
 
-export async function fetchNormalized(id = "35") {
+const cache = new Map();
+const pending = new Map();
+
+/**
+ * Estaciones de una provincia, ya normalizadas, con la caché por delante.
+ *
+ * Devuelve tambien cuando se descargaron y si son de respaldo, para que la
+ * ruta pueda avisar al usuario en vez de hacerle creer que son de ahora.
+ */
+export async function fetchStationsCached(id = "35") {
   const key = String(id);
   const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.data;
+  const age = hit ? Date.now() - hit.at : Infinity;
 
-  const raw = await fetchRawGas(key);
-  const data = normalizeStations(raw);
-  cache.set(key, { at: Date.now(), data });
-  return data;
+  if (hit && age < CACHE_TTL_MS) {
+    return { stations: hit.data, fetchedAt: hit.at, stale: false };
+  }
+
+  // Si entran varias peticiones a la vez comparten una sola descarga: antes
+  // cada visitante abria su propia llamada al Ministerio.
+  let job = pending.get(key);
+  if (!job) {
+    job = fetchRawGas(key)
+      .then((raw) => {
+        const data = normalizeStations(raw);
+        cache.set(key, { at: Date.now(), data });
+        return data;
+      })
+      .finally(() => pending.delete(key));
+    pending.set(key, job);
+  }
+
+  try {
+    const data = await job;
+    return { stations: data, fetchedAt: Date.now(), stale: false };
+  } catch (error) {
+    if (hit && age < STALE_MAX_MS) {
+      console.warn(
+        `Ministerio caido (${error.message}); sirviendo copia de hace ${Math.round(age / 60000)} min`,
+      );
+      return { stations: hit.data, fetchedAt: hit.at, stale: true };
+    }
+    throw error;
+  }
+}
+
+export async function fetchNormalized(id = "35") {
+  const { stations } = await fetchStationsCached(id);
+  return stations;
 }
 
 function haversineKm(lat1, lon1, lat2, lon2) {
