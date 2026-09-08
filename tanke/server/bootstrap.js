@@ -51,18 +51,23 @@ Si ves un precio imposible, mándanos un aviso desde tu cuenta: horario mal, est
 ];
 
 export async function ensureAdmin(prisma) {
-  const email = (process.env.ADMIN_EMAIL || "admin@tanke.dev").toLowerCase();
-  const password = process.env.ADMIN_PASSWORD || "TankeAdmin2026";
+  const currentAdmin = await prisma.user.findFirst({ where: { role: "admin" } });
+  if (currentAdmin) return currentAdmin;
+
+  const email = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+  const password = String(process.env.ADMIN_PASSWORD || "");
+  if (!email || !password) {
+    console.warn(
+      "Tanke: no hay administrador; define ADMIN_EMAIL y ADMIN_PASSWORD para crear el primero.",
+    );
+    return null;
+  }
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
-    if (existing.role !== "admin") {
-      await prisma.user.update({
-        where: { id: existing.id },
-        data: { role: "admin", active: true },
-      });
-    }
-    return existing;
+    throw new Error(
+      "ADMIN_EMAIL ya pertenece a una cuenta sin rol admin; la promoción debe ser explícita.",
+    );
   }
 
   const admin = await prisma.user.create({

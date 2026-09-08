@@ -1,5 +1,5 @@
 import { FUELS } from "../../shared/fuels.js";
-import { fetchNormalized } from "./stations.js";
+import { fetchStationsCached } from "./stations.js";
 import { appUrl, priceAlertEmail, sendEmail } from "./mailer.js";
 
 // Cuánto esperamos antes de volver a avisar de la misma alerta. Sin esto, el
@@ -65,7 +65,15 @@ export async function runAlerts(prisma, { now = Date.now() } = {}) {
   for (const alert of alerts) {
     if (porProvincia.has(alert.provinceId)) continue;
     try {
-      porProvincia.set(alert.provinceId, await fetchNormalized(alert.provinceId));
+      const result = await fetchStationsCached(alert.provinceId);
+      if (result.stale) {
+        console.warn(
+          `Alertas: provincia ${alert.provinceId}: datos de respaldo, no se notifica`,
+        );
+        porProvincia.set(alert.provinceId, []);
+      } else {
+        porProvincia.set(alert.provinceId, result.stations);
+      }
     } catch (error) {
       console.error(`Alertas: provincia ${alert.provinceId}:`, error.message);
       porProvincia.set(alert.provinceId, []);
@@ -96,9 +104,10 @@ export async function runAlerts(prisma, { now = Date.now() } = {}) {
   }
 
   let notified = 0;
+  let notifiedUsers = 0;
   for (const { user, saltadas } of porUsuario.values()) {
     try {
-      await sendEmail({
+      const delivery = await sendEmail({
         to: user.email,
         ...priceAlertEmail({
           name: user.name,
@@ -106,6 +115,7 @@ export async function runAlerts(prisma, { now = Date.now() } = {}) {
           url: `${appUrl()}/cuenta?tab=alertas`,
         }),
       });
+      if (!delivery.delivered) continue;
     } catch (error) {
       // Si el correo no sale no marcamos como avisadas: se reintenta a la
       // hora siguiente en vez de perderse el aviso en silencio.
@@ -113,14 +123,17 @@ export async function runAlerts(prisma, { now = Date.now() } = {}) {
       continue;
     }
 
+    let userNotifications = 0;
     for (const saltada of saltadas) {
-      await prisma.priceAlert.update({
-        where: { id: saltada.id },
+      const updated = await prisma.priceAlert.updateMany({
+        where: { id: saltada.id, active: true },
         data: { notifiedAt: new Date(now), notifiedPrice: saltada.currentMin },
       });
-      notified += 1;
+      notified += updated.count;
+      userNotifications += updated.count;
     }
+    if (userNotifications > 0) notifiedUsers += 1;
   }
 
-  return { checked: alerts.length, notified, users: porUsuario.size };
+  return { checked: alerts.length, notified, users: notifiedUsers };
 }

@@ -53,6 +53,10 @@ export default function ResetPassword() {
       setError("Las dos contraseñas no coinciden.");
       return;
     }
+    if (password.length < 8) {
+      setError("La contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
     setBusy(true);
     try {
       const data = await api.reset({ token, password });
@@ -62,7 +66,7 @@ export default function ResetPassword() {
       navigate("/cuenta");
     } catch (err) {
       setError(err.message);
-      setValid(false);
+      if (err.message.toLowerCase().includes("enlace")) setValid(false);
     } finally {
       setBusy(false);
     }

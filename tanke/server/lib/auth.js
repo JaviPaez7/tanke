@@ -71,6 +71,54 @@ export async function revokeSessions(userId, keepToken) {
   return count;
 }
 
+export async function updateUserAndInvalidateResets(client, userId, data) {
+  return client.$transaction(async (tx) => {
+    const user = await tx.user.update({ where: { id: userId }, data });
+    if (data.email) {
+      await tx.passwordReset.deleteMany({ where: { userId } });
+    }
+    return user;
+  });
+}
+
+export async function consumePasswordReset(
+  client,
+  { resetId, userId, passwordHash, now = new Date() },
+) {
+  return client.$transaction(async (tx) => {
+    const consumed = await tx.passwordReset.updateMany({
+      where: { id: resetId, usedAt: null, expiresAt: { gt: now } },
+      data: { usedAt: now },
+    });
+    if (consumed.count !== 1) return null;
+
+    const user = await tx.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+    await tx.session.deleteMany({ where: { userId } });
+    return user;
+  });
+}
+
+export async function changePasswordAndRevoke(
+  client,
+  { userId, passwordHash, keepToken },
+) {
+  const sessionWhere = { userId };
+  if (keepToken) sessionWhere.NOT = { tokenHash: hashToken(keepToken) };
+
+  return client.$transaction(async (tx) => {
+    const user = await tx.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+    await tx.passwordReset.deleteMany({ where: { userId } });
+    const closed = await tx.session.deleteMany({ where: sessionWhere });
+    return { user, closedSessions: closed.count };
+  });
+}
+
 // Las sesiones caducadas solo se borraban al tropezar con ellas en un login.
 // La tabla crecia sin techo; esto la mantiene al dia desde el job de fondo.
 export async function purgeExpiredSessions() {

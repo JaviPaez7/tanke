@@ -57,7 +57,7 @@ falla se sirve la última copia buena hasta 6 h con `stale: true`.
 - Alertas: el job horario (`server/lib/alerts.js`) las evalúa y manda un correo;
   como mucho uno al día por alerta, salvo bajada de 3 céntimos sobre el último aviso
 - Back-office: `/admin` (rol `admin`)
-- Seed: `ADMIN_EMAIL` / `ADMIN_PASSWORD` (por defecto `admin@tanke.dev` / `TankeAdmin2026`)
+- Seed inicial: `ADMIN_EMAIL` / `ADMIN_PASSWORD` solo crean el primer administrador; no tienen valores predeterminados y no promocionan cuentas existentes
 
 ## Correo
 

@@ -180,11 +180,13 @@ export function registerMeRoutes(app) {
     requireAuth,
     wrap(async (req, res) => {
       const alerts = await prisma.priceAlert.findMany({
-        where: { userId: req.user.id, active: true },
+        where: { userId: req.user.id },
+        orderBy: { createdAt: "desc" },
       });
 
       const byProvince = new Map();
       for (const alert of alerts) {
+        if (!alert.active) continue;
         if (!byProvince.has(alert.provinceId)) {
           byProvince.set(alert.provinceId, await fetchNormalized(alert.provinceId));
         }
@@ -193,6 +195,14 @@ export function registerMeRoutes(app) {
       // Misma función que usa el job que manda los correos: si divergieran,
       // la cuenta diría una cosa y el email otra.
       const status = alerts.map((alert) => {
+        if (!alert.active) {
+          return {
+            ...alert,
+            currentMin: null,
+            stationName: null,
+            triggered: false,
+          };
+        }
         const stations = byProvince.get(alert.provinceId) || [];
         const best = cheapestFor(stations, alert);
         const currentMin = best ? best[alert.fuel] : null;
@@ -264,10 +274,10 @@ export function registerMeRoutes(app) {
     wrap(async (req, res) => {
       const snapshots = await prisma.priceSnapshot.findMany({
         where: { stationId: String(req.params.id) },
-        orderBy: { capturedDate: "asc" },
+        orderBy: { capturedDate: "desc" },
         take: 90,
       });
-      res.json({ snapshots });
+      res.json({ snapshots: snapshots.reverse() });
     }),
   );
 

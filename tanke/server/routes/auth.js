@@ -1,6 +1,8 @@
 import { prisma, requireDb } from "../db.js";
 import {
   SESSION_COOKIE,
+  changePasswordAndRevoke,
+  consumePasswordReset,
   cookieOptions,
   createSession,
   destroySession,
@@ -11,7 +13,7 @@ import {
   publicUser,
   rateLimit,
   requireAuth,
-  revokeSessions,
+  updateUserAndInvalidateResets,
   verifyPassword,
   wrap,
 } from "../lib/auth.js";
@@ -150,10 +152,7 @@ export function registerAuthRoutes(app) {
         data.email = email;
       }
 
-      const user = await prisma.user.update({
-        where: { id: req.user.id },
-        data,
-      });
+      const user = await updateUserAndInvalidateResets(prisma, req.user.id, data);
       res.json({ user: publicUser(user) });
     }),
   );
@@ -255,22 +254,22 @@ export function registerAuthRoutes(app) {
         });
       }
 
-      await prisma.$transaction([
-        prisma.user.update({
-          where: { id: reset.userId },
-          data: { passwordHash: await hashPassword(password) },
-        }),
-        prisma.passwordReset.update({
-          where: { id: reset.id },
-          data: { usedAt: new Date() },
-        }),
-        // Quien conociera la contraseña vieja queda fuera.
-        prisma.session.deleteMany({ where: { userId: reset.userId } }),
-      ]);
+      const passwordHash = await hashPassword(password);
+      const changedUser = await consumePasswordReset(prisma, {
+        resetId: reset.id,
+        userId: reset.userId,
+        passwordHash,
+      });
+
+      if (!changedUser) {
+        return res.status(400).json({
+          error: "El enlace ya no es válido. Pide uno nuevo.",
+        });
+      }
 
       const sessionToken = await createSession(reset.userId);
       res.cookie(SESSION_COOKIE, sessionToken, cookieOptions());
-      res.json({ user: publicUser(reset.user) });
+      res.json({ user: publicUser(changedUser) });
     }),
   );
 
@@ -294,13 +293,11 @@ export function registerAuthRoutes(app) {
           .json({ error: "La contraseña nueva tiene que ser distinta de la actual." });
       }
 
-      await prisma.user.update({
-        where: { id: req.user.id },
-        data: { passwordHash: await hashPassword(next) },
+      const changed = await changePasswordAndRevoke(prisma, {
+        userId: req.user.id,
+        passwordHash: await hashPassword(next),
+        keepToken: req.cookies?.[SESSION_COOKIE],
       });
-      // Se conserva la sesion actual: cambiar la contraseña no deberia echarte
-      // a ti mismo de la pagina en la que estas.
-      const closed = await revokeSessions(req.user.id, req.cookies?.[SESSION_COOKIE]);
 
       try {
         await sendEmail({
@@ -314,7 +311,7 @@ export function registerAuthRoutes(app) {
         console.error("Password changed email:", error.message);
       }
 
-      res.json({ ok: true, closedSessions: closed });
+      res.json({ ok: true, closedSessions: changed.closedSessions });
     }),
   );
 

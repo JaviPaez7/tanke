@@ -46,7 +46,9 @@ npx prisma generate
 npm run dev                   # Express :3003 + Vite; /api → Express
 ```
 
-Admin por defecto: `admin@tanke.dev` / `TankeAdmin2026`.
+Para crear el primer administrador, define `ADMIN_EMAIL` y `ADMIN_PASSWORD` en
+`.env` antes del primer arranque. No existen credenciales predeterminadas ni se
+promocionan automáticamente cuentas ya registradas.
 
 ```bash
 npm run build
@@ -58,7 +60,7 @@ npm test
 
 - **Docker / VPS:** `tanke/Dockerfile` (Express en `:3002`) + `docker-compose.yml` (app + Postgres) → `tanke.javistudio.dev`
 - **CI:** GitHub Actions construye la imagen GHCR y despliega en el VPS
-- El VPS guarda su copia del compose en `/opt/gas-tracker`, con `POSTGRES_PASSWORD`, `ADMIN_PASSWORD` y `SMTP_URL` en el `.env` de al lado. Los datos viven en el volumen `gas-tracker_tanke_pg`, así que sobreviven a los despliegues
+- El VPS guarda su copia del compose en `/opt/gas-tracker`, con `POSTGRES_PASSWORD` y `SMTP_URL` en el `.env` de al lado. `ADMIN_EMAIL` y `ADMIN_PASSWORD` solo hacen falta para crear el primer administrador. Los datos viven en el volumen `gas-tracker_tanke_pg`, así que sobreviven a los despliegues
 - Las migraciones se aplican solas al arrancar el contenedor (`docker-entrypoint.sh`)
 - Healthcheck en `/api/health`; responde 200 mientras el proceso pueda atender
 

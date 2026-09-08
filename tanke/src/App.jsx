@@ -25,6 +25,11 @@ import { AppChrome } from "./components/AppChrome";
 import { FavoriteButton } from "./components/FavoriteButton";
 import { ReportButton } from "./components/ReportButton";
 import { StationListSkeleton } from "./components/StationSkeleton";
+import {
+  CARD_FUELS,
+  PRICE_FIELD_BY_SORT,
+  tankSummary,
+} from "./lib/stationPricing";
 
 // El mapa se carga solo cuando se pide esa vista: Leaflet y su CSS son el
 // bloque más pesado del proyecto y la mayoría de visitas no salen de la lista.
@@ -176,19 +181,26 @@ function readInitialProvince() {
   return provinceIds[saved] ? saved : "Las Palmas";
 }
 
+function readInitialMunicipality() {
+  const params = new URLSearchParams(window.location.search);
+  const fromUrl = resolveProvinceSlug(params.get("provincia"), provinceIds);
+  const savedProvince = localStorage.getItem("tanke_province");
+  if (fromUrl && fromUrl !== savedProvince) return "";
+  return localStorage.getItem("tanke_municipality") || "";
+}
+
 function readInitialSort() {
   const params = new URLSearchParams(window.location.search);
   const fuel = params.get("combustible");
   if (fuel && fuelSortBySlug[fuel]) return fuelSortBySlug[fuel];
-  return localStorage.getItem("tanke_sort") || "gas95Asc";
+  const saved = localStorage.getItem("tanke_sort");
+  return PRICE_FIELD_BY_SORT[saved] ? saved : "gas95Asc";
 }
 
 function App() {
   const [selectedProvince, setSelectedProvince] = useState(readInitialProvince);
 
-  const [selectedMunicipality, setSelectedMunicipality] = useState(
-    () => localStorage.getItem("tanke_municipality") || "",
-  );
+  const [selectedMunicipality, setSelectedMunicipality] = useState(readInitialMunicipality);
   const [sortType, setSortType] = useState(readInitialSort);
   // 50 L por defecto (depósito típico). Antes arrancaba en 0 = desactivado, así
   // que la insignia "Ahorras" —el argumento diferencial de la app— no se veía
@@ -257,6 +269,8 @@ function App() {
     setLoading(true);
     setErrorMsg("");
     setStaleNotice("");
+    // Nunca mezclar la etiqueta de una provincia con resultados de la anterior.
+    setAllStationsInProvince([]);
     try {
       const { stations: data, stale } = await getAllGasStations(id);
       if (requestId !== lastRequestRef.current) return; // obsoleta
@@ -361,7 +375,9 @@ function App() {
           s.municipality.toLowerCase().includes(term) ||
           s.address.toLowerCase().includes(term),
       );
-    } else if (userLocation) {
+    }
+
+    if (userLocation) {
       result = result.map((s) => ({
         ...s,
         distance: calculateDistance(
@@ -374,17 +390,18 @@ function App() {
 
       const nearStations = result.filter((s) => s.distance < searchRadius);
 
-      if (nearStations.length > 0) {
+      if (nearStations.length > 0 || searchTerm) {
         result = nearStations;
       } else {
         result.sort((a, b) => a.distance - b.distance);
         result = result.slice(0, 20);
       }
-    } else {
-      if (selectedMunicipality) {
-        result = result.filter((s) => s.municipality === selectedMunicipality);
-      }
+    } else if (selectedMunicipality) {
+      result = result.filter((s) => s.municipality === selectedMunicipality);
     }
+
+    const currentField = PRICE_FIELD_BY_SORT[sortType];
+    result = result.filter((station) => station[currentField] > 0);
 
     result.sort((a, b) => {
       if (userLocation && gpsSort === "distance") {
@@ -407,14 +424,6 @@ function App() {
       return priceA - priceB;
     });
 
-    const fieldMap = {
-      gas95Asc: "price95",
-      gas98Asc: "price98",
-      dieselAsc: "priceDiesel",
-      glpAsc: "priceGLP",
-      cnGAsc: "priceCNG",
-    };
-    const currentField = fieldMap[sortType];
     const validPrices = result
       .map((s) => s[currentField])
       .filter((p) => p && p > 0);
@@ -511,13 +520,11 @@ function App() {
   };
 
   const getPriceForStation = (station) => {
-    if (sortType === "gas95Asc") return station.price95;
-    if (sortType === "gas98Asc") return station.price98;
-    if (sortType === "dieselAsc") return station.priceDiesel;
-    if (sortType === "glpAsc") return station.priceGLP;
-    if (sortType === "cnGAsc") return station.priceCNG;
-    return 0;
+    return station[PRICE_FIELD_BY_SORT[sortType]] || 0;
   };
+
+  const selectedFuelLabel =
+    CARD_FUELS.find((fuel) => fuel.sort === sortType)?.label || "ese combustible";
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-100 pb-20 transition-colors duration-500">
@@ -851,10 +858,7 @@ function App() {
           </div>
         </div>
 
-        {/* Solo avisamos si de verdad no hay nada que mostrar: si un fetch falló
-            pero otro trajo datos, el aviso contradecía a la lista de abajo.
-            Antes no había salida del error salvo recargar la página. */}
-        {errorMsg && stations.length === 0 && (
+        {errorMsg && (
           <div
             className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-red-800 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200"
             role="alert"
@@ -880,6 +884,20 @@ function App() {
             role="status"
           >
             {staleNotice}
+          </div>
+        )}
+
+        {!loading && !errorMsg && stations.length === 0 && (
+          <div
+            className="mb-4 rounded-2xl border border-slate-200 bg-white px-5 py-6 text-center dark:border-slate-800 dark:bg-slate-900"
+            role="status"
+          >
+            <p className="font-black text-slate-800 dark:text-white">
+              No hay gasolineras con {selectedFuelLabel}
+            </p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Prueba otra zona o quita los filtros de búsqueda.
+            </p>
           </div>
         )}
 
@@ -925,8 +943,11 @@ function App() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {stations.slice(0, pageSize).map((station) => {
               const price = getPriceForStation(station);
-              const total = price * tankSize;
-              const savings = (currentAverage - price) * tankSize;
+              const { total, savings } = tankSummary(
+                price,
+                currentAverage,
+                tankSize,
+              );
 
               const brand = brandFor(station.name);
 
@@ -1005,29 +1026,15 @@ function App() {
                   )}
 
                   <div className="grid grid-cols-2 gap-2 mb-6">
-                    <PriceTag
-                      label="G95"
-                      price={station.price95}
-                      highlight={sortType === "gas95Asc"}
-                      currentAverage={currentAverage}
-                    />
-                    <PriceTag
-                      label="Diésel"
-                      price={station.priceDiesel}
-                      highlight={sortType === "dieselAsc"}
-                      currentAverage={currentAverage}
-                    />
-                    <PriceTag
-                      label="G98"
-                      price={station.price98}
-                      highlight={sortType === "gas98Asc"}
-                      currentAverage={currentAverage}
-                    />
-                    <PriceTag 
-                      label="Diésel+" 
-                      price={station.priceDieselPlus} 
-                      currentAverage={currentAverage}
-                    />
+                    {CARD_FUELS.map((fuel) => (
+                      <PriceTag
+                        key={fuel.field}
+                        label={fuel.label}
+                        price={station[fuel.field]}
+                        highlight={fuel.sort === sortType}
+                        currentAverage={currentAverage}
+                      />
+                    ))}
                   </div>
                   <a
                     href={`https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`}

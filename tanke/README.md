@@ -32,7 +32,8 @@ npx prisma generate
 npm run dev
 ```
 
-Panel: `/admin` · `admin@tanke.dev` / `TankeAdmin2026`
+Panel: `/admin`. Para crear el primer administrador, define `ADMIN_EMAIL` y
+`ADMIN_PASSWORD` antes del primer arranque; no hay credenciales predeterminadas.
 
 ## Despliegue
 

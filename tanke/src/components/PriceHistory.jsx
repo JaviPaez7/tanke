@@ -13,6 +13,7 @@ export function PriceHistory({ points, caption }) {
         priceDiesel: point.priceDiesel ?? point.avgDiesel,
         priceDieselPlus: point.priceDieselPlus ?? point.avgDieselPlus,
         priceGLP: point.priceGLP ?? point.avgGLP,
+        priceCNG: point.priceCNG ?? point.avgCNG,
       }))
       .filter((row) => row.date);
   }, [points]);

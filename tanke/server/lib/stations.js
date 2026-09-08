@@ -6,7 +6,8 @@ const GOV_URL_ALL =
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
-export { FUELS } from "../../shared/fuels.js";
+import { FUELS } from "../../shared/fuels.js";
+export { FUELS };
 
 function num(value) {
   return parseFloat(String(value || "0").replace(",", ".")) || 0;
@@ -32,8 +33,10 @@ export async function fetchRawGas(id = "35") {
 }
 
 export function normalizeStations(rawData) {
-  const list = rawData.ListaEESSPrecio || rawData;
-  if (!Array.isArray(list)) return [];
+  const list = rawData?.ListaEESSPrecio ?? rawData;
+  if (!Array.isArray(list)) {
+    throw new Error("Respuesta inválida del Ministerio: falta ListaEESSPrecio");
+  }
 
   return list
     .map((station) => ({
@@ -53,7 +56,10 @@ export function normalizeStations(rawData) {
       lat: num(station.Latitud),
       lng: num(station["Longitud (WGS84)"]),
     }))
-    .filter((s) => s.id && (s.price95 > 0 || s.priceDiesel > 0));
+    .filter(
+      (station) =>
+        station.id && FUELS.some((fuel) => station[fuel.id] > 0),
+    );
 }
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
@@ -86,6 +92,9 @@ export async function fetchStationsCached(id = "35") {
     job = fetchRawGas(key)
       .then((raw) => {
         const data = normalizeStations(raw);
+        if (data.length === 0) {
+          throw new Error("Respuesta inválida del Ministerio: no contiene estaciones");
+        }
         cache.set(key, { at: Date.now(), data });
         return data;
       })

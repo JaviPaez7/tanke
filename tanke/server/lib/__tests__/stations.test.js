@@ -52,22 +52,38 @@ describe("normalizeStations", () => {
     expect(Number.isNaN(s.price98)).toBe(false);
   });
 
-  it("descarta estaciones sin 95 ni diésel", async () => {
+  it("conserva estaciones que solo venden GLP o GNC", async () => {
     const { normalizeStations } = await loadStations();
     const list = normalizeStations({
       ListaEESSPrecio: [
-        govStation({ "Precio Gasolina 95 E5": "", "Precio Gasoleo A": "" }),
-        govStation({ IDEESS: "5678" }),
+        govStation({
+          "Precio Gasolina 95 E5": "",
+          "Precio Gasolina 98 E5": "",
+          "Precio Gasoleo A": "",
+          "Precio Nuevo Gasoleo A": "",
+          "Precio Gases licuados del petróleo": "",
+          "Precio Gas Natural Comprimido": "1,050",
+        }),
+        govStation({
+          IDEESS: "5678",
+          "Precio Gasolina 95 E5": "",
+          "Precio Gasolina 98 E5": "",
+          "Precio Gasoleo A": "",
+          "Precio Nuevo Gasoleo A": "",
+          "Precio Gases licuados del petróleo": "0,899",
+          "Precio Gas Natural Comprimido": "",
+        }),
       ],
     });
-    expect(list).toHaveLength(1);
-    expect(list[0].id).toBe("5678");
+    expect(list.map((station) => station.id)).toEqual(["1234", "5678"]);
   });
 
-  it("aguanta una respuesta con forma inesperada", async () => {
+  it("rechaza una respuesta con forma inesperada", async () => {
     const { normalizeStations } = await loadStations();
-    expect(normalizeStations({})).toEqual([]);
-    expect(normalizeStations({ ListaEESSPrecio: null })).toEqual([]);
+    expect(() => normalizeStations({})).toThrow(/Respuesta inválida/);
+    expect(() => normalizeStations({ ListaEESSPrecio: null })).toThrow(
+      /Respuesta inválida/,
+    );
   });
 });
 
@@ -163,5 +179,28 @@ describe("fetchStationsCached", () => {
     const { fetchStationsCached } = await loadStations();
     stubFetch(async () => ({ ok: false, status: 403, json: async () => ({}) }));
     await expect(fetchStationsCached("35")).rejects.toThrow(/403/);
+  });
+
+  it("preserva la copia buena ante una respuesta 200 con esquema inválido", async () => {
+    vi.useFakeTimers();
+    try {
+      const { fetchStationsCached } = await loadStations();
+      let invalid = false;
+      stubFetch(async () => ({
+        ok: true,
+        json: async () =>
+          invalid ? { ListaEESSPrecio: null } : { ListaEESSPrecio: [govStation()] },
+      }));
+
+      const fresh = await fetchStationsCached("35");
+      invalid = true;
+      vi.advanceTimersByTime(11 * 60 * 1000);
+
+      const fallback = await fetchStationsCached("35");
+      expect(fallback.stale).toBe(true);
+      expect(fallback.stations).toEqual(fresh.stations);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

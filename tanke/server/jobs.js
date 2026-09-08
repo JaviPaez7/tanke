@@ -1,8 +1,4 @@
-import {
-  fetchNormalized,
-  utcDateOnly,
-  warmLocateIndex,
-} from "./lib/stations.js";
+import { fetchStationsCached, utcDateOnly, warmLocateIndex } from "./lib/stations.js";
 import { purgeExpiredSessions } from "./lib/auth.js";
 import { runAlerts } from "./lib/alerts.js";
 
@@ -35,7 +31,11 @@ export async function runSnapshot(prisma, { force = false } = {}) {
   try {
     let stations = 0;
     for (const provinceId of provinceIds) {
-      const list = await fetchNormalized(provinceId);
+      const result = await fetchStationsCached(provinceId);
+      if (result.stale) {
+        throw new Error(`Provincia ${provinceId}: solo hay datos de respaldo`);
+      }
+      const list = result.stations;
       for (const station of list) {
         await prisma.priceSnapshot.upsert({
           where: {
