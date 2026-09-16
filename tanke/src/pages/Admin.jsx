@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Navigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { AdminShell } from "../components/AdminShell";
@@ -34,7 +34,15 @@ const emptyArticle = {
   tags: "",
 };
 
+// Mismos mínimos que valida el servidor (server/lib/content.js): el navegador
+// avisa antes de enviar y el servidor sigue siendo quien manda.
+const TITLE_MIN = 4;
+const BODY_MIN = 20;
+
 const SECTION_IDS = ADMIN_SECTIONS.map((s) => s.id);
+
+const dangerButton =
+  "bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-300";
 
 function Panel({ title, children, className = "" }) {
   return (
@@ -51,6 +59,80 @@ function Panel({ title, children, className = "" }) {
   );
 }
 
+// Una fila de categoría o etiqueta: nombre, en cuántas guías se usa y los
+// botones de renombrar/borrar. El modo edición es local a la fila.
+function TaxonomyRow({ item, kind, busy, onRename, onDelete }) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(item.name);
+  const used = item._count?.articles ?? 0;
+
+  async function submit(event) {
+    event.preventDefault();
+    const ok = await onRename(item, name.trim());
+    if (ok) setEditing(false);
+  }
+
+  return (
+    <li className="px-5 py-3">
+      {editing ? (
+        <form onSubmit={submit} className="flex flex-wrap items-center gap-2">
+          <TextInput
+            autoFocus
+            required
+            minLength={2}
+            maxLength={40}
+            size="sm"
+            width="auto"
+            aria-label={`Nuevo nombre de ${item.name}`}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="min-w-0 flex-1"
+          />
+          <GhostButton type="submit" disabled={busy}>
+            Guardar
+          </GhostButton>
+          <GhostButton
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              setName(item.name);
+              setEditing(false);
+            }}
+          >
+            Cancelar
+          </GhostButton>
+        </form>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="font-bold">{item.name}</p>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              /{item.slug} · {used === 0 ? "sin usar" : `en ${plural(used, "guía", "guías")}`}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <GhostButton
+              type="button"
+              disabled={busy}
+              onClick={() => setEditing(true)}
+            >
+              Renombrar
+            </GhostButton>
+            <GhostButton
+              type="button"
+              disabled={busy}
+              className={dangerButton}
+              onClick={() => onDelete(item, kind)}
+            >
+              Borrar
+            </GhostButton>
+          </div>
+        </div>
+      )}
+    </li>
+  );
+}
+
 export default function Admin() {
   const { user, ready } = useAuth();
   const [params, setParams] = useSearchParams();
@@ -59,14 +141,19 @@ export default function Admin() {
   const [users, setUsers] = useState([]);
   const [articles, setArticles] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [tags, setTags] = useState([]);
   const [reports, setReports] = useState([]);
   const [runs, setRuns] = useState([]);
   const [snapshots, setSnapshots] = useState(0);
   const [form, setForm] = useState(emptyArticle);
   const [editing, setEditing] = useState(null);
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [newCategory, setNewCategory] = useState("");
   const [query, setQuery] = useState("");
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  // Qué acción está en curso (id de fila o nombre de formulario). Mientras
+  // dura, su botón se desactiva: evita el doble clic y el doble envío.
+  const [pending, setPending] = useState(null);
 
   useEffect(() => {
     if (user?.role !== "admin") return;
@@ -85,11 +172,37 @@ export default function Admin() {
       setUsers(u.users);
       setArticles(a.articles);
       setCategories(t.categories);
+      setTags(t.tags);
       setReports(r.reports);
       setRuns(i.runs);
       setSnapshots(i.snapshots);
     } catch (err) {
       setError(err.message);
+    }
+  }
+
+  async function reloadTaxonomy() {
+    const t = await api.adminTaxonomy();
+    setCategories(t.categories);
+    setTags(t.tags);
+  }
+
+  // Todas las acciones del panel pasan por aquí: un solo sitio decide qué
+  // pasa si la petición falla (mensaje arriba) y bloquea el control mientras
+  // tanto. Devuelve true si salió bien para que el llamador pueda cerrar
+  // formularios o limpiar campos.
+  async function run(key, action) {
+    setPending(key);
+    setError("");
+    setNotice("");
+    try {
+      await action();
+      return true;
+    } catch (err) {
+      setError(err.message);
+      return false;
+    } finally {
+      setPending(null);
     }
   }
 
@@ -108,11 +221,12 @@ export default function Admin() {
 
   function goTo(id) {
     setParams(id === "overview" ? {} : { seccion: id }, { replace: true });
+    setError("");
+    setNotice("");
   }
 
   async function saveArticle(event) {
     event.preventDefault();
-    setError("");
     const payload = {
       ...form,
       tags: form.tags
@@ -121,19 +235,79 @@ export default function Admin() {
         .filter(Boolean),
       categoryId: form.categoryId || null,
     };
-    try {
+    const ok = await run("article-form", async () => {
       if (editing) await api.patchArticle(editing, payload);
       else await api.createArticle(payload);
-      setForm(emptyArticle);
-      setEditing(null);
       const data = await api.adminArticles();
       setArticles(data.articles);
-    } catch (err) {
-      setError(err.message);
+      // Las etiquetas nuevas escritas en la guía aparecen en su pantalla.
+      await reloadTaxonomy();
+    });
+    if (ok) {
+      setNotice(editing ? "Guía guardada." : "Guía creada.");
+      setForm(emptyArticle);
+      setEditing(null);
     }
   }
 
-  const pending = reports.filter((r) => r.status === "pending");
+  async function deleteArticle(article) {
+    if (!window.confirm(`¿Borrar «${article.title}»? No se puede deshacer.`)) return;
+    await run(article.id, async () => {
+      await api.deleteArticle(article.id);
+      setArticles((prev) => prev.filter((a) => a.id !== article.id));
+      if (editing === article.id) {
+        setEditing(null);
+        setForm(emptyArticle);
+      }
+      await reloadTaxonomy();
+    });
+  }
+
+  async function createCategory(event) {
+    event.preventDefault();
+    const ok = await run("category-form", async () => {
+      await api.createCategory({ name: newCategory.trim() });
+      await reloadTaxonomy();
+    });
+    if (ok) setNewCategory("");
+  }
+
+  async function renameTaxonomy(item, kind, name) {
+    if (!name || name === item.name) return true;
+    return run(item.id, async () => {
+      if (kind === "category") await api.patchCategory(item.id, { name });
+      else await api.patchTag(item.id, { name });
+      await reloadTaxonomy();
+      // El nombre también se ve en la lista de guías.
+      const data = await api.adminArticles();
+      setArticles(data.articles);
+    });
+  }
+
+  async function deleteTaxonomy(item, kind) {
+    const used = item._count?.articles ?? 0;
+    const what = kind === "category" ? "la categoría" : "la etiqueta";
+    const consequence =
+      used === 0
+        ? "No la usa ninguna guía."
+        : kind === "category"
+          ? `${plural(used, "guía se quedará", "guías se quedarán")} sin categoría.`
+          : `Desaparecerá de ${plural(used, "guía", "guías")}.`;
+    if (!window.confirm(`¿Borrar ${what} «${item.name}»? ${consequence}`)) return;
+    const ok = await run(item.id, async () => {
+      if (kind === "category") await api.deleteCategory(item.id);
+      else await api.deleteTag(item.id);
+      await reloadTaxonomy();
+      const data = await api.adminArticles();
+      setArticles(data.articles);
+      if (kind === "category" && form.categoryId === item.id) {
+        setForm((f) => ({ ...f, categoryId: "" }));
+      }
+    });
+    if (ok) setNotice(`${kind === "category" ? "Categoría" : "Etiqueta"} borrada.`);
+  }
+
+  const pendingReports = reports.filter((r) => r.status === "pending");
   const drafts = articles.filter((a) => !a.published);
   const lastRun = runs[0];
   const filteredUsers = users.filter((row) => {
@@ -148,18 +322,26 @@ export default function Admin() {
     <AdminShell
       current={section}
       onSelect={goTo}
-      badges={{ reports: pending.length, articles: drafts.length }}
+      badges={{ reports: pendingReports.length, articles: drafts.length }}
     >
       {error && (
         <div className="mb-6">
           <AlertBox>{error}</AlertBox>
         </div>
       )}
+      {notice && (
+        <p
+          role="status"
+          className="mb-6 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-800 dark:border-green-900/60 dark:bg-green-950/40 dark:text-green-200"
+        >
+          {notice}
+        </p>
+      )}
 
       {section === "overview" && (
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
           <Panel title="Esperando por ti">
-            {pending.length === 0 ? (
+            {pendingReports.length === 0 ? (
               <p className="px-5 py-6 text-sm text-slate-600 dark:text-slate-300">
                 No hay avisos pendientes.{" "}
                 {drafts.length > 0
@@ -168,7 +350,7 @@ export default function Admin() {
               </p>
             ) : (
               <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-                {pending.slice(0, 5).map((report) => (
+                {pendingReports.slice(0, 5).map((report) => (
                   <li key={report.id} className="px-5 py-4">
                     <p className="font-bold">{report.stationName}</p>
                     <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
@@ -181,7 +363,7 @@ export default function Admin() {
                 ))}
                 <li className="px-5 py-4">
                   <GhostButton onClick={() => goTo("reports")}>
-                    Revisar {plural(pending.length, "aviso", "avisos")}
+                    Revisar {plural(pendingReports.length, "aviso", "avisos")}
                   </GhostButton>
                 </li>
               </ul>
@@ -195,6 +377,8 @@ export default function Admin() {
                 ["Cuentas activas", users.filter((u) => u.active).length],
                 ["Guías publicadas", articles.length - drafts.length],
                 ["Guías en borrador", drafts.length],
+                ["Categorías", categories.length],
+                ["Etiquetas", tags.length],
                 ["Precios guardados", snapshots],
               ].map(([label, value]) => (
                 <div
@@ -249,66 +433,85 @@ export default function Admin() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {filteredUsers.map((row) => (
-                    <tr
-                      key={row.id}
-                      className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                    >
-                      <td className="px-5 py-3">
-                        <span className="block font-bold">{row.name}</span>
-                        <span className="block text-xs text-slate-500 dark:text-slate-400">
-                          {row.email}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 tabular-nums text-slate-600 dark:text-slate-300">
-                        {formatDate(row.createdAt)}
-                      </td>
-                      <td className="px-5 py-3 tabular-nums text-slate-600 dark:text-slate-300">
-                        {row._count?.favorites ?? 0} fav ·{" "}
-                        {row._count?.alerts ?? 0} avisos
-                      </td>
-                      <td className="px-5 py-3">
-                        <SelectInput
-                          value={row.role}
-                          aria-label={`Rol de ${row.name}`}
-                          onChange={async (e) => {
-                            await api.patchUser(row.id, {
-                              role: e.target.value,
-                            });
-                            reload();
-                          }}
-                          size="sm"
-                          width="auto"
-                        >
-                          <option value="user">Usuario</option>
-                          <option value="admin">Administrador</option>
-                        </SelectInput>
-                      </td>
-                      <td className="px-5 py-3">
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            await api.patchUser(row.id, {
-                              active: !row.active,
-                            });
-                            reload();
-                          }}
-                          title={
-                            row.active
-                              ? "Desactivar esta cuenta"
-                              : "Reactivar esta cuenta"
-                          }
-                          className={`h-9 rounded-lg px-3 text-xs font-black uppercase tracking-wide transition-colors cursor-pointer ${
-                            row.active
-                              ? "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-950/50 dark:text-green-300 dark:hover:bg-green-900/60"
-                              : "bg-slate-200 text-slate-700 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                          }`}
-                        >
-                          {row.active ? "Activa" : "Desactivada"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredUsers.map((row) => {
+                    const self = row.id === user.id;
+                    const busy = pending === row.id;
+                    return (
+                      <tr
+                        key={row.id}
+                        className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                      >
+                        <td className="px-5 py-3">
+                          <span className="block font-bold">
+                            {row.name}
+                            {self && (
+                              <span className="ml-2 rounded-md bg-indigo-100 px-1.5 py-0.5 text-[10px] font-black uppercase text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
+                                Tú
+                              </span>
+                            )}
+                          </span>
+                          <span className="block text-xs text-slate-500 dark:text-slate-400">
+                            {row.email}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 tabular-nums text-slate-600 dark:text-slate-300">
+                          {formatDate(row.createdAt)}
+                        </td>
+                        <td className="px-5 py-3 tabular-nums text-slate-600 dark:text-slate-300">
+                          {row._count?.favorites ?? 0} fav ·{" "}
+                          {row._count?.alerts ?? 0} alertas ·{" "}
+                          {row._count?.reports ?? 0} avisos
+                        </td>
+                        <td className="px-5 py-3">
+                          <SelectInput
+                            value={row.role}
+                            aria-label={`Rol de ${row.name}`}
+                            disabled={self || busy}
+                            title={self ? "No puedes cambiar tu propio rol" : undefined}
+                            onChange={(e) =>
+                              run(row.id, async () => {
+                                await api.patchUser(row.id, { role: e.target.value });
+                                const data = await api.adminUsers();
+                                setUsers(data.users);
+                              })
+                            }
+                            size="sm"
+                            width="auto"
+                          >
+                            <option value="user">Usuario</option>
+                            <option value="admin">Administrador</option>
+                          </SelectInput>
+                        </td>
+                        <td className="px-5 py-3">
+                          <button
+                            type="button"
+                            disabled={self || busy}
+                            onClick={() =>
+                              run(row.id, async () => {
+                                await api.patchUser(row.id, { active: !row.active });
+                                const data = await api.adminUsers();
+                                setUsers(data.users);
+                              })
+                            }
+                            title={
+                              self
+                                ? "No puedes desactivar tu propia cuenta"
+                                : row.active
+                                  ? "Desactivar esta cuenta"
+                                  : "Reactivar esta cuenta"
+                            }
+                            className={`h-9 rounded-lg px-3 text-xs font-black uppercase tracking-wide transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
+                              row.active
+                                ? "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-950/50 dark:text-green-300 dark:hover:bg-green-900/60"
+                                : "bg-slate-200 text-slate-700 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                            }`}
+                          >
+                            {busy ? "…" : row.active ? "Activa" : "Desactivada"}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -320,9 +523,11 @@ export default function Admin() {
         <div className="grid items-start gap-6 lg:grid-cols-2">
           <Panel title={editing ? "Editar guía" : "Nueva guía"}>
             <form onSubmit={saveArticle} className="space-y-4 p-5">
-              <Field label="Título">
+              <Field label="Título" hint={`Mínimo ${TITLE_MIN} caracteres.`}>
                 <TextInput
                   required
+                  minLength={TITLE_MIN}
+                  maxLength={160}
                   placeholder="Cómo ahorrar repostando por la mañana"
                   value={form.title}
                   onChange={(e) =>
@@ -332,7 +537,7 @@ export default function Admin() {
               </Field>
               <Field
                 label="Slug"
-                hint="Si lo dejas vacío se genera a partir del título."
+                hint="Es la parte final de la URL. Si lo dejas vacío se genera a partir del título."
               >
                 <TextInput
                   placeholder="ahorrar-repostando-por-la-manana"
@@ -342,16 +547,24 @@ export default function Admin() {
                   }
                 />
               </Field>
-              <Field label="Extracto">
+              <Field label="Extracto" hint="Una frase para el listado y para Google.">
                 <TextInput
-                  placeholder="Una frase para el listado y para Google"
+                  maxLength={300}
+                  placeholder="Qué significan la media, el ahorro y los colores"
                   value={form.excerpt}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, excerpt: e.target.value }))
                   }
                 />
               </Field>
-              <Field label="Categoría">
+              <Field
+                label="Categoría"
+                hint={
+                  categories.length === 0
+                    ? "Todavía no hay categorías: créalas en su pantalla."
+                    : undefined
+                }
+              >
                 <SelectInput
                   value={form.categoryId}
                   onChange={(e) =>
@@ -366,7 +579,10 @@ export default function Admin() {
                   ))}
                 </SelectInput>
               </Field>
-              <Field label="Etiquetas" hint="Sepáralas por comas.">
+              <Field
+                label="Etiquetas"
+                hint="Sepáralas por comas. Las que no existan se crean solas."
+              >
                 <TextInput
                   placeholder="canarias, diésel, ahorro"
                   value={form.tags}
@@ -375,9 +591,13 @@ export default function Admin() {
                   }
                 />
               </Field>
-              <Field label="Cuerpo" hint="Un párrafo por línea en blanco.">
+              <Field
+                label="Cuerpo"
+                hint={`Un párrafo por línea en blanco. Mínimo ${BODY_MIN} caracteres.`}
+              >
                 <TextArea
                   required
+                  minLength={BODY_MIN}
                   rows={10}
                   value={form.body}
                   onChange={(e) =>
@@ -397,8 +617,12 @@ export default function Admin() {
                 Publicada y visible en /guias
               </label>
               <div className="flex flex-wrap gap-2 pt-1">
-                <PrimaryButton type="submit">
-                  {editing ? "Guardar cambios" : "Crear guía"}
+                <PrimaryButton type="submit" disabled={pending === "article-form"}>
+                  {pending === "article-form"
+                    ? "Guardando…"
+                    : editing
+                      ? "Guardar cambios"
+                      : "Crear guía"}
                 </PrimaryButton>
                 {editing && (
                   <GhostButton
@@ -430,7 +654,22 @@ export default function Admin() {
                         <p className="font-bold">{article.title}</p>
                         <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
                           /guias/{article.slug}
+                          {article.category?.name
+                            ? ` · ${article.category.name}`
+                            : " · sin categoría"}
                         </p>
+                        {article.tags?.length > 0 && (
+                          <ul className="mt-2 flex flex-wrap gap-1.5">
+                            {article.tags.map((tag) => (
+                              <li
+                                key={tag.id}
+                                className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide dark:bg-slate-800"
+                              >
+                                {tag.name}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       </div>
                       <span
                         className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-black uppercase tracking-wide ${
@@ -442,8 +681,9 @@ export default function Admin() {
                         {article.published ? "Publicada" : "Borrador"}
                       </span>
                     </div>
-                    <div className="mt-3 flex gap-2">
+                    <div className="mt-3 flex flex-wrap gap-2">
                       <GhostButton
+                        type="button"
                         onClick={() => {
                           setEditing(article.id);
                           setForm({
@@ -462,22 +702,23 @@ export default function Admin() {
                       >
                         Editar
                       </GhostButton>
+                      {article.published && (
+                        <Link
+                          to={`/guias/${article.slug}`}
+                          target="_blank"
+                          rel="noopener"
+                          className="inline-flex h-10 items-center justify-center rounded-xl bg-slate-100 px-3 text-sm font-bold transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
+                        >
+                          Ver
+                        </Link>
+                      )}
                       <GhostButton
-                        onClick={async () => {
-                          if (
-                            !window.confirm(
-                              `¿Borrar «${article.title}»? No se puede deshacer.`,
-                            )
-                          )
-                            return;
-                          await api.deleteArticle(article.id);
-                          setArticles((prev) =>
-                            prev.filter((a) => a.id !== article.id),
-                          );
-                        }}
-                        className="bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-300"
+                        type="button"
+                        disabled={pending === article.id}
+                        onClick={() => deleteArticle(article)}
+                        className={dangerButton}
                       >
-                        Borrar
+                        {pending === article.id ? "Borrando…" : "Borrar"}
                       </GhostButton>
                     </div>
                   </li>
@@ -488,9 +729,80 @@ export default function Admin() {
         </div>
       )}
 
+      {section === "taxonomy" && (
+        <div className="grid items-start gap-6 lg:grid-cols-2">
+          <Panel title={plural(categories.length, "categoría", "categorías")}>
+            <form
+              onSubmit={createCategory}
+              className="flex flex-wrap items-end gap-2 border-b border-slate-100 p-5 dark:border-slate-800"
+            >
+              <div className="min-w-0 flex-1">
+                <Field label="Nueva categoría">
+                  <TextInput
+                    required
+                    minLength={2}
+                    maxLength={40}
+                    placeholder="Mantenimiento"
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                  />
+                </Field>
+              </div>
+              <PrimaryButton type="submit" disabled={pending === "category-form"}>
+                {pending === "category-form" ? "Creando…" : "Crear"}
+              </PrimaryButton>
+            </form>
+            {categories.length === 0 ? (
+              <p className="px-5 py-6 text-sm text-slate-600 dark:text-slate-300">
+                Sin categorías. Las guías pueden vivir sin ella, pero agrupan mejor
+                el listado público.
+              </p>
+            ) : (
+              <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                {categories.map((category) => (
+                  <TaxonomyRow
+                    key={category.id}
+                    item={category}
+                    kind="category"
+                    busy={pending === category.id}
+                    onRename={(item, name) => renameTaxonomy(item, "category", name)}
+                    onDelete={deleteTaxonomy}
+                  />
+                ))}
+              </ul>
+            )}
+          </Panel>
+
+          <Panel title={plural(tags.length, "etiqueta", "etiquetas")}>
+            <p className="border-b border-slate-100 px-5 py-4 text-sm leading-relaxed text-slate-600 dark:border-slate-800 dark:text-slate-300">
+              Las etiquetas nacen al escribirlas en una guía. Aquí se renombran o
+              se borran; borrar una la quita de todas las guías que la usan.
+            </p>
+            {tags.length === 0 ? (
+              <p className="px-5 py-6 text-sm text-slate-600 dark:text-slate-300">
+                Todavía no hay etiquetas.
+              </p>
+            ) : (
+              <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                {tags.map((tag) => (
+                  <TaxonomyRow
+                    key={tag.id}
+                    item={tag}
+                    kind="tag"
+                    busy={pending === tag.id}
+                    onRename={(item, name) => renameTaxonomy(item, "tag", name)}
+                    onDelete={deleteTaxonomy}
+                  />
+                ))}
+              </ul>
+            )}
+          </Panel>
+        </div>
+      )}
+
       {section === "reports" && (
         <Panel
-          title={`${plural(reports.length, "aviso", "avisos")} · ${pending.length} sin revisar`}
+          title={`${plural(reports.length, "aviso", "avisos")} · ${pendingReports.length} sin revisar`}
         >
           {reports.length === 0 ? (
             <p className="px-5 py-6 text-sm text-slate-600 dark:text-slate-300">
@@ -526,10 +838,15 @@ export default function Admin() {
                       .map((status) => (
                         <GhostButton
                           key={status}
-                          onClick={async () => {
-                            await api.patchReport(report.id, { status });
-                            reload();
-                          }}
+                          type="button"
+                          disabled={pending === report.id}
+                          onClick={() =>
+                            run(report.id, async () => {
+                              await api.patchReport(report.id, { status });
+                              const data = await api.adminReports();
+                              setReports(data.reports);
+                            })
+                          }
                         >
                           Marcar como {REPORT_STATUS[status].toLowerCase()}
                         </GhostButton>
@@ -580,32 +897,32 @@ export default function Admin() {
           <Panel title="Sincronizar">
             <div className="space-y-4 p-5">
               <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-                Hay {snapshots.toLocaleString("es-ES")} precios guardados. Se
-                ejecuta sola una vez al día para Las Palmas y Tenerife.
+                Hay {snapshots.toLocaleString("es-ES")} precios guardados. El
+                servidor guarda una copia al día de las provincias configuradas
+                (por defecto Las Palmas y Tenerife); aquí puedes forzarla.
               </p>
               <PrimaryButton
                 type="button"
-                disabled={busy}
+                disabled={pending === "ingestion"}
                 className="w-full"
-                onClick={async () => {
-                  setBusy(true);
-                  setError("");
-                  try {
-                    await api.runIngestion();
+                onClick={() =>
+                  run("ingestion", async () => {
+                    const { run: result } = await api.runIngestion();
                     const data = await api.ingestion();
                     setRuns(data.runs);
                     setSnapshots(data.snapshots);
-                  } catch (err) {
-                    setError(err.message);
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
+                    if (result && !result.ok) {
+                      throw new Error(
+                        result.error || "La sincronización ha fallado.",
+                      );
+                    }
+                  })
+                }
               >
                 <SyncIcon
-                  className={`mr-2 h-4 w-4 ${busy ? "animate-spin" : ""}`}
+                  className={`mr-2 h-4 w-4 ${pending === "ingestion" ? "animate-spin" : ""}`}
                 />
-                {busy ? "Sincronizando…" : "Sincronizar ahora"}
+                {pending === "ingestion" ? "Sincronizando…" : "Sincronizar ahora"}
               </PrimaryButton>
             </div>
           </Panel>

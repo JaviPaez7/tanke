@@ -1,6 +1,6 @@
 # Tanke (gas-tracker)
 
-Buscador de gasolineras baratas en España (datos del Ministerio). Prod: [tanke.javistudio.dev](https://tanke.javistudio.dev).
+Buscador de gasolineras baratas en España (datos abiertos del Ministerio para la Transición Ecológica). Prod: [tanke.javistudio.dev](https://tanke.javistudio.dev).
 
 El código de la app vive en **`tanke/`**. En la raíz: compose, CI y README.
 
@@ -56,7 +56,7 @@ falla se sirve la última copia buena hasta 6 h con `stale: true`.
 - Ajustes: cambiar nombre/email/contraseña, exportar datos (JSON) y borrar la cuenta
 - Alertas: el job horario (`server/lib/alerts.js`) las evalúa y manda un correo;
   como mucho uno al día por alerta, salvo bajada de 3 céntimos sobre el último aviso
-- Back-office: `/admin` (rol `admin`)
+- Back-office: `/admin` (rol `admin`): usuarios, guías, categorías/etiquetas, avisos e ingesta. Las reglas de validación de guías y taxonomía viven en `server/lib/content.js`; crear y editar validan lo mismo
 - Seed inicial: `ADMIN_EMAIL` / `ADMIN_PASSWORD` solo crean el primer administrador; no tienen valores predeterminados y no promocionan cuentas existentes
 
 ## Correo

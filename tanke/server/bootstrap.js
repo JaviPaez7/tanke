@@ -8,7 +8,7 @@ const GUIDES = [
       "Qué significan la media, el ahorro del depósito y los colores de cada combustible.",
     category: "Ahorro",
     tags: ["gasolina", "consejos"],
-    body: `Tanke no inventa precios: los toma cada pocos minutos de la sede electrónica del Ministerio de Industria.
+    body: `Tanke no inventa precios: los toma cada pocos minutos de la API pública de carburantes del Ministerio para la Transición Ecológica y el Reto Demográfico.
 
 La cifra grande de cada tarjeta es el combustible que tienes activo (95, 98, diésel…). El resto se muestra para comparar de un vistazo.
 

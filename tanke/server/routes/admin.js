@@ -1,8 +1,20 @@
 import { prisma, requireDb } from "../db.js";
-import { requireAdmin, slugify, wrap } from "../lib/auth.js";
+import { requireAdmin, wrap } from "../lib/auth.js";
+import {
+  isUniqueViolation,
+  parseArticleInput,
+  parseTaxonomyInput,
+  syncTags,
+} from "../lib/content.js";
 import { runSnapshot } from "../jobs.js";
 
 const REPORT_STATES = ["pending", "reviewed", "dismissed"];
+
+const ARTICLE_INCLUDE = {
+  category: true,
+  tags: { include: { tag: true } },
+  author: { select: { id: true, name: true, email: true } },
+};
 
 function articleAdmin(article) {
   return {
@@ -14,19 +26,12 @@ function articleAdmin(article) {
   };
 }
 
-async function syncTags(names = []) {
-  const clean = [...new Set(names.map((n) => String(n).trim()).filter(Boolean))];
-  const tags = [];
-  for (const name of clean) {
-    const slug = slugify(name);
-    const tag = await prisma.tag.upsert({
-      where: { slug },
-      update: { name },
-      create: { name, slug },
-    });
-    tags.push(tag);
-  }
-  return tags;
+// La categoría llega como id desde el selector; si alguien la borró en otra
+// pestaña, mejor un 400 claro que un error de clave foránea.
+async function categoryExists(id) {
+  if (!id) return true;
+  const found = await prisma.category.findUnique({ where: { id }, select: { id: true } });
+  return Boolean(found);
 }
 
 export function registerAdminRoutes(app) {
@@ -66,6 +71,15 @@ export function registerAdminRoutes(app) {
       const data = {};
       if (req.body?.role === "user" || req.body?.role === "admin") data.role = req.body.role;
       if (typeof req.body?.active === "boolean") data.active = req.body.active;
+      if (Object.keys(data).length === 0) {
+        return res.status(400).json({ error: "No hay nada que cambiar." });
+      }
+
+      const existing = await prisma.user.findUnique({
+        where: { id: req.params.id },
+        select: { id: true },
+      });
+      if (!existing) return res.status(404).json({ error: "Usuario no encontrado." });
 
       const user = await prisma.user.update({
         where: { id: req.params.id },
@@ -94,11 +108,7 @@ export function registerAdminRoutes(app) {
     requireAdmin,
     wrap(async (_req, res) => {
       const articles = await prisma.article.findMany({
-        include: {
-          category: true,
-          tags: { include: { tag: true } },
-          author: { select: { id: true, name: true, email: true } },
-        },
+        include: ARTICLE_INCLUDE,
         orderBy: { updatedAt: "desc" },
       });
       res.json({ articles: articles.map(articleAdmin) });
@@ -110,33 +120,40 @@ export function registerAdminRoutes(app) {
     requireDb,
     requireAdmin,
     wrap(async (req, res) => {
-      const title = String(req.body?.title || "").trim();
-      const body = String(req.body?.body || "").trim();
-      const excerpt = String(req.body?.excerpt || "").trim();
-      const slug = slugify(req.body?.slug || title);
-      if (title.length < 4) return res.status(400).json({ error: "El título es demasiado corto." });
-      if (body.length < 20) return res.status(400).json({ error: "El cuerpo es demasiado corto." });
-      if (!slug) return res.status(400).json({ error: "El slug no es válido." });
+      const parsed = parseArticleInput(req.body);
+      if (parsed.error) return res.status(400).json({ error: parsed.error });
+      const { tags = [], ...data } = parsed.data;
 
-      const tags = await syncTags(req.body?.tags || []);
-      const article = await prisma.article.create({
-        data: {
-          title,
-          slug,
-          excerpt,
-          body,
-          published: Boolean(req.body?.published),
-          categoryId: req.body?.categoryId || null,
-          authorId: req.user.id,
-          tags: { create: tags.map((tag) => ({ tagId: tag.id })) },
-        },
-        include: {
-          category: true,
-          tags: { include: { tag: true } },
-          author: { select: { id: true, name: true, email: true } },
-        },
+      if (!(await categoryExists(data.categoryId))) {
+        return res.status(400).json({ error: "Esa categoría ya no existe." });
+      }
+      const taken = await prisma.article.findUnique({
+        where: { slug: data.slug },
+        select: { id: true },
       });
-      res.status(201).json({ article: articleAdmin(article) });
+      if (taken) return res.status(409).json({ error: "Ya existe una guía con ese slug." });
+
+      try {
+        const article = await prisma.$transaction(async (tx) => {
+          const tagRows = await syncTags(tx, tags);
+          return tx.article.create({
+            data: {
+              ...data,
+              published: data.published ?? false,
+              categoryId: data.categoryId ?? null,
+              authorId: req.user.id,
+              tags: { create: tagRows.map((tag) => ({ tagId: tag.id })) },
+            },
+            include: ARTICLE_INCLUDE,
+          });
+        });
+        res.status(201).json({ article: articleAdmin(article) });
+      } catch (error) {
+        if (isUniqueViolation(error)) {
+          return res.status(409).json({ error: "Ya existe una guía con ese slug." });
+        }
+        throw error;
+      }
     }),
   );
 
@@ -148,30 +165,43 @@ export function registerAdminRoutes(app) {
       const existing = await prisma.article.findUnique({ where: { id: req.params.id } });
       if (!existing) return res.status(404).json({ error: "Artículo no encontrado." });
 
-      const data = {};
-      if (req.body?.title != null) data.title = String(req.body.title).trim();
-      if (req.body?.body != null) data.body = String(req.body.body).trim();
-      if (req.body?.excerpt != null) data.excerpt = String(req.body.excerpt).trim();
-      if (req.body?.slug != null) data.slug = slugify(req.body.slug);
-      if (typeof req.body?.published === "boolean") data.published = req.body.published;
-      if (req.body?.categoryId !== undefined) data.categoryId = req.body.categoryId || null;
+      const parsed = parseArticleInput(req.body, { partial: true });
+      if (parsed.error) return res.status(400).json({ error: parsed.error });
+      const { tags, ...data } = parsed.data;
 
-      if (Array.isArray(req.body?.tags)) {
-        const tags = await syncTags(req.body.tags);
-        await prisma.articleTag.deleteMany({ where: { articleId: existing.id } });
-        data.tags = { create: tags.map((tag) => ({ tagId: tag.id })) };
+      if (data.categoryId !== undefined && !(await categoryExists(data.categoryId))) {
+        return res.status(400).json({ error: "Esa categoría ya no existe." });
+      }
+      if (data.slug && data.slug !== existing.slug) {
+        const taken = await prisma.article.findUnique({
+          where: { slug: data.slug },
+          select: { id: true },
+        });
+        if (taken) return res.status(409).json({ error: "Ya existe una guía con ese slug." });
       }
 
-      const article = await prisma.article.update({
-        where: { id: existing.id },
-        data,
-        include: {
-          category: true,
-          tags: { include: { tag: true } },
-          author: { select: { id: true, name: true, email: true } },
-        },
-      });
-      res.json({ article: articleAdmin(article) });
+      try {
+        // Etiquetas y contenido van en la misma transacción: antes se borraban
+        // las relaciones y, si el update fallaba, la guía se quedaba sin ellas.
+        const article = await prisma.$transaction(async (tx) => {
+          if (tags) {
+            const tagRows = await syncTags(tx, tags);
+            await tx.articleTag.deleteMany({ where: { articleId: existing.id } });
+            data.tags = { create: tagRows.map((tag) => ({ tagId: tag.id })) };
+          }
+          return tx.article.update({
+            where: { id: existing.id },
+            data,
+            include: ARTICLE_INCLUDE,
+          });
+        });
+        res.json({ article: articleAdmin(article) });
+      } catch (error) {
+        if (isUniqueViolation(error)) {
+          return res.status(409).json({ error: "Ya existe una guía con ese slug." });
+        }
+        throw error;
+      }
     }),
   );
 
@@ -190,13 +220,24 @@ export function registerAdminRoutes(app) {
     }),
   );
 
+  // Categorías y etiquetas viajan juntas: el panel las pinta en la misma
+  // pantalla y el formulario de guía necesita ambas. `_count` dice cuántas
+  // guías usan cada una para avisar antes de borrar.
   app.get(
     "/api/admin/categories",
     requireDb,
     requireAdmin,
     wrap(async (_req, res) => {
-      const categories = await prisma.category.findMany({ orderBy: { name: "asc" } });
-      const tags = await prisma.tag.findMany({ orderBy: { name: "asc" } });
+      const [categories, tags] = await Promise.all([
+        prisma.category.findMany({
+          orderBy: { name: "asc" },
+          include: { _count: { select: { articles: true } } },
+        }),
+        prisma.tag.findMany({
+          orderBy: { name: "asc" },
+          include: { _count: { select: { articles: true } } },
+        }),
+      ]);
       res.json({ categories, tags });
     }),
   );
@@ -206,26 +247,109 @@ export function registerAdminRoutes(app) {
     requireDb,
     requireAdmin,
     wrap(async (req, res) => {
-      const name = String(req.body?.name || "").trim();
-      const slug = slugify(req.body?.slug || name);
-      if (name.length < 2) return res.status(400).json({ error: "Nombre demasiado corto." });
-      const category = await prisma.category.create({ data: { name, slug } });
-      res.status(201).json({ category });
+      const parsed = parseTaxonomyInput(req.body);
+      if (parsed.error) return res.status(400).json({ error: parsed.error });
+      try {
+        const category = await prisma.category.create({
+          data: parsed.data,
+          include: { _count: { select: { articles: true } } },
+        });
+        res.status(201).json({ category });
+      } catch (error) {
+        if (isUniqueViolation(error)) {
+          return res.status(409).json({ error: "Ya existe una categoría con ese nombre." });
+        }
+        throw error;
+      }
     }),
   );
 
+  app.patch(
+    "/api/admin/categories/:id",
+    requireDb,
+    requireAdmin,
+    wrap(async (req, res) => {
+      const parsed = parseTaxonomyInput(req.body);
+      if (parsed.error) return res.status(400).json({ error: parsed.error });
+      try {
+        const category = await prisma.category.update({
+          where: { id: req.params.id },
+          data: parsed.data,
+          include: { _count: { select: { articles: true } } },
+        });
+        res.json({ category });
+      } catch (error) {
+        if (isUniqueViolation(error)) {
+          return res.status(409).json({ error: "Ya existe una categoría con ese nombre." });
+        }
+        if (error?.code === "P2025") {
+          return res.status(404).json({ error: "Categoría no encontrada." });
+        }
+        throw error;
+      }
+    }),
+  );
+
+  // Borrar una categoría no borra sus guías: la relación es opcional y la base
+  // las deja "sin categoría" (ON DELETE SET NULL). Se devuelve cuántas se han
+  // quedado así para que el panel lo diga con claridad.
   app.delete(
     "/api/admin/categories/:id",
     requireDb,
     requireAdmin,
     wrap(async (req, res) => {
-      const { count } = await prisma.category.deleteMany({
+      const category = await prisma.category.findUnique({
         where: { id: req.params.id },
+        include: { _count: { select: { articles: true } } },
       });
-      if (count === 0) {
-        return res.status(404).json({ error: "Categoría no encontrada." });
+      if (!category) return res.status(404).json({ error: "Categoría no encontrada." });
+
+      await prisma.category.delete({ where: { id: category.id } });
+      res.json({ ok: true, detached: category._count.articles });
+    }),
+  );
+
+  app.patch(
+    "/api/admin/tags/:id",
+    requireDb,
+    requireAdmin,
+    wrap(async (req, res) => {
+      const parsed = parseTaxonomyInput(req.body);
+      if (parsed.error) return res.status(400).json({ error: parsed.error });
+      try {
+        const tag = await prisma.tag.update({
+          where: { id: req.params.id },
+          data: parsed.data,
+          include: { _count: { select: { articles: true } } },
+        });
+        res.json({ tag });
+      } catch (error) {
+        if (isUniqueViolation(error)) {
+          return res.status(409).json({ error: "Ya existe una etiqueta con ese nombre." });
+        }
+        if (error?.code === "P2025") {
+          return res.status(404).json({ error: "Etiqueta no encontrada." });
+        }
+        throw error;
       }
-      res.json({ ok: true });
+    }),
+  );
+
+  // Las filas de ArticleTag cuelgan de Tag con onDelete: Cascade, así que la
+  // etiqueta desaparece de todas las guías sin tocarlas.
+  app.delete(
+    "/api/admin/tags/:id",
+    requireDb,
+    requireAdmin,
+    wrap(async (req, res) => {
+      const tag = await prisma.tag.findUnique({
+        where: { id: req.params.id },
+        include: { _count: { select: { articles: true } } },
+      });
+      if (!tag) return res.status(404).json({ error: "Etiqueta no encontrada." });
+
+      await prisma.tag.delete({ where: { id: tag.id } });
+      res.json({ ok: true, detached: tag._count.articles });
     }),
   );
 
@@ -259,9 +383,14 @@ export function registerAdminRoutes(app) {
       if (!REPORT_STATES.includes(status)) {
         return res.status(400).json({ error: "Estado no válido." });
       }
-      const report = await prisma.stationReport.update({
+      const { count } = await prisma.stationReport.updateMany({
         where: { id: req.params.id },
         data: { status },
+      });
+      if (count === 0) return res.status(404).json({ error: "Aviso no encontrado." });
+
+      const report = await prisma.stationReport.findUnique({
+        where: { id: req.params.id },
         include: { user: { select: { id: true, name: true, email: true } } },
       });
       res.json({ report });

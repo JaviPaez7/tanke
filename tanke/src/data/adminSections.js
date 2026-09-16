@@ -2,6 +2,7 @@ import {
   GridIcon,
   NewspaperIcon,
   SyncIcon,
+  TagIcon,
   UsersIcon,
   WarningIcon,
 } from "../icons";
@@ -30,6 +31,14 @@ export const ADMIN_SECTIONS = [
     title: "Guías publicadas",
     description:
       "El contenido que se ve en /guias. Se puede dejar en borrador.",
+  },
+  {
+    id: "taxonomy",
+    label: "Categorías",
+    icon: TagIcon,
+    title: "Categorías y etiquetas",
+    description:
+      "Cómo se agrupan las guías. Borrar una categoría no borra sus guías.",
   },
   {
     id: "reports",

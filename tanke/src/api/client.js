@@ -52,6 +52,7 @@ export const api = {
     request(`/api/stats/history?provinceId=${encodeURIComponent(provinceId)}`),
   articles: () => request("/api/articles"),
   article: (slug) => request(`/api/articles/${encodeURIComponent(slug)}`),
+  categories: () => request("/api/categories"),
   adminUsers: () => request("/api/admin/users"),
   patchUser: (id, body) =>
     request(`/api/admin/users/${id}`, { method: "PATCH", body }),
@@ -65,6 +66,13 @@ export const api = {
   adminTaxonomy: () => request("/api/admin/categories"),
   createCategory: (body) =>
     request("/api/admin/categories", { method: "POST", body }),
+  patchCategory: (id, body) =>
+    request(`/api/admin/categories/${id}`, { method: "PATCH", body }),
+  deleteCategory: (id) =>
+    request(`/api/admin/categories/${id}`, { method: "DELETE" }),
+  patchTag: (id, body) =>
+    request(`/api/admin/tags/${id}`, { method: "PATCH", body }),
+  deleteTag: (id) => request(`/api/admin/tags/${id}`, { method: "DELETE" }),
   adminReports: (status) =>
     request(status ? `/api/admin/reports?status=${status}` : "/api/admin/reports"),
   patchReport: (id, body) =>

@@ -1,6 +1,6 @@
 # Tanke
 
-Encuentra las gasolineras más baratas de España según combustible, depósito y ubicación. Datos oficiales del Ministerio de Industria.
+Encuentra las gasolineras más baratas de España según combustible, depósito y ubicación. Datos oficiales del Ministerio para la Transición Ecológica y el Reto Demográfico.
 
 **En vivo:** [tanke.javistudio.dev](https://tanke.javistudio.dev)
 
@@ -18,7 +18,7 @@ Encuentra las gasolineras más baratas de España según combustible, depósito 
 - Alertas de precio que avisan por email cuando una gasolinera baja de tu tope
 - Recuperación de contraseña por email (enlace de un solo uso, caduca en 30 min)
 - Ajustes de cuenta: cambiar nombre, email y contraseña, descargar tus datos y darte de baja
-- Guías editables y panel `/admin` (usuarios, contenidos, ingesta)
+- Guías editables con categorías y etiquetas, filtro por categoría en `/guias`, y panel `/admin` (usuarios, guías, categorías/etiquetas, avisos, ingesta)
 
 ## Stack
 
@@ -59,7 +59,7 @@ npm test
 ## Despliegue
 
 - **Docker / VPS:** `tanke/Dockerfile` (Express en `:3002`) + `docker-compose.yml` (app + Postgres) → `tanke.javistudio.dev`
-- **CI:** GitHub Actions construye la imagen GHCR y despliega en el VPS
+- **CI:** GitHub Actions ejecuta lint y tests; si pasan, construye la imagen GHCR y despliega en el VPS
 - El VPS guarda su copia del compose en `/opt/gas-tracker`, con `POSTGRES_PASSWORD` y `SMTP_URL` en el `.env` de al lado. `ADMIN_EMAIL` y `ADMIN_PASSWORD` solo hacen falta para crear el primer administrador. Los datos viven en el volumen `gas-tracker_tanke_pg`, así que sobreviven a los despliegues
 - Las migraciones se aplican solas al arrancar el contenedor (`docker-entrypoint.sh`)
 - Healthcheck en `/api/health`; responde 200 mientras el proceso pueda atender

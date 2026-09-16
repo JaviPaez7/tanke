@@ -20,8 +20,20 @@ export function mountApi(app) {
 
   app.use("/api", (err, _req, res, next) => {
     if (typeof next === "function" && res.headersSent) return next(err);
-    console.error(err);
     if (res.headersSent) return;
+    // Un JSON mal formado es culpa del cliente, no un fallo del servidor.
+    if (err?.type === "entity.parse.failed") {
+      return res.status(400).json({ error: "El cuerpo de la petición no es JSON válido." });
+    }
+    // Restricciones de la base que no se comprobaron antes: mejor un código
+    // que la persona pueda entender que un 500 genérico.
+    if (err?.code === "P2002") {
+      return res.status(409).json({ error: "Ya existe un registro con ese valor." });
+    }
+    if (err?.code === "P2025") {
+      return res.status(404).json({ error: "No encontrado" });
+    }
+    console.error(err);
     res.status(500).json({ error: "Error interno" });
   });
 
