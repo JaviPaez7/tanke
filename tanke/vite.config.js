@@ -47,6 +47,12 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // El chunk del mapa pasa de 49 KB a 300 KB (gzip) al llevar MapLibre
+        // dentro, y su worker suma otro tanto; solo hacen falta si el usuario
+        // abre el mapa. Precargarlos en la instalacion del PWA multiplicaba lo
+        // que se descarga de entrada, asi que se quedan fuera del precache y
+        // se cachean al usarlos.
+        globIgnores: ["**/StationMap-*.js", "**/maplibre-gl-worker-*.js"],
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [
           /^\/api\//,
@@ -61,10 +67,22 @@ export default defineConfig({
             urlPattern: /\/api\//,
             handler: "NetworkOnly",
           },
+          {
+            urlPattern: /\/assets\/(StationMap|maplibre-gl-worker)-[^/]+\.js$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "tanke-mapa",
+              expiration: { maxEntries: 2 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
       },
     }),
   ],
+  // MapLibre arranca su worker con `type: "module"`; se empaqueta como ES
+  // module para que coincida con lo que espera.
+  worker: { format: "es" },
   server: {
     proxy: {
       "/api": {

@@ -1,14 +1,18 @@
 import { useEffect } from "react";
-import {
-  Circle,
-  MapContainer,
-  Marker,
-  Popup,
-  TileLayer,
-  useMap,
-} from "react-leaflet";
+import { Circle, MapContainer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import { maplibreGL } from "@maplibre/maplibre-gl-leaflet";
+import { setWorkerUrl } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
+// MapLibre 6 decodifica las teselas vectoriales en un Web Worker que vive en
+// un módulo aparte y que resuelve con `new URL("./maplibre-gl-worker.mjs",
+// import.meta.url)`. Al empaquetar, esa URL apunta a /assets/ y el fichero no
+// existe: el servidor devolvía index.html, el worker moría y el mapa se
+// quedaba gris con los marcadores encima. Con `?worker&url` Vite empaqueta el
+// worker (y el chunk compartido que importa) en un fichero propio y nos da su
+// URL definitiva.
+import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import icon from "leaflet/dist/images/marker-icon.png";
 import iconShadow from "leaflet/dist/images/marker-shadow.png";
 import { CrownIcon, MapPinIcon } from "../icons";
@@ -27,6 +31,46 @@ L.Marker.prototype.options.icon = L.icon({
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
 });
+
+setWorkerUrl(maplibreWorkerUrl);
+
+// CARTO dejo de servir sus basemaps a quien no tiene cuenta: las teselas
+// seguian llegando con 200, pero estampadas con "API KEY REQUIRED" encima del
+// mapa. OpenFreeMap las sirve sin clave ni registro y, al ser open source de
+// arriba abajo (planetiler + estos mismos estilos), si algun dia cambia de
+// politica el basemap se autohospeda en el VPS cambiando solo esta URL.
+const BASEMAP_STYLES = {
+  light: "https://tiles.openfreemap.org/styles/positron",
+  dark: "https://tiles.openfreemap.org/styles/dark",
+};
+
+// El plugin no cuelga la atribucion del control de Leaflet, asi que la ponemos
+// a mano; sin ella incumplimos la licencia de OpenStreetMap.
+const BASEMAP_ATTRIBUTION =
+  '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> | © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
+
+// Teselas vectoriales dentro del Leaflet que ya habia: MapLibre pinta solo el
+// fondo (pane "tilePane"), y los marcadores, popups y el circulo del radio
+// siguen siendo Leaflet puro y por encima.
+function BaseMap({ isDark }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const layer = maplibreGL({
+      style: BASEMAP_STYLES[isDark ? "dark" : "light"],
+      attributionControl: false,
+    });
+    layer.addTo(map);
+    map.attributionControl?.addAttribution(BASEMAP_ATTRIBUTION);
+
+    return () => {
+      map.attributionControl?.removeAttribution(BASEMAP_ATTRIBUTION);
+      map.removeLayer(layer);
+    };
+  }, [map, isDark]);
+
+  return null;
+}
 
 const formatPrice = (n) => priceFormat.format(n);
 
@@ -108,15 +152,9 @@ export default function StationMap({
         scrollWheelZoom={true}
         className="h-full w-full"
       >
-        {/* Si es dark mode, cargamos las tiles oscuras de CartoDB */}
-        <TileLayer
-          attribution='© <a href="https://carto.com/attributions">CARTO</a>'
-          url={
-            isDark
-              ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-              : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-          }
-        />
+        {/* Cambiar de estilo recrea la capa: MapLibre no permite intercambiar
+            el style de un mapa ya montado sin reiniciarlo. */}
+        <BaseMap isDark={isDark} />
 
         <RecenterMap stations={stations} />
 
