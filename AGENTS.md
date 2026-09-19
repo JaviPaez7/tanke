@@ -57,7 +57,7 @@ falla se sirve la última copia buena hasta 6 h con `stale: true`.
 - Alertas: el job horario (`server/lib/alerts.js`) las evalúa y manda un correo;
   como mucho uno al día por alerta, salvo bajada de 3 céntimos sobre el último aviso
 - Back-office: `/admin` (rol `admin`): usuarios, guías, categorías/etiquetas, avisos e ingesta. Las reglas de validación de guías y taxonomía viven en `server/lib/content.js`; crear y editar validan lo mismo
-- Seed inicial: `ADMIN_EMAIL` / `ADMIN_PASSWORD` solo crean el primer administrador; no tienen valores predeterminados y no promocionan cuentas existentes
+- Seed inicial: `ADMIN_EMAIL` / `ADMIN_PASSWORD` solo crean el primer administrador; no tienen valores predeterminados y no promocionan cuentas existentes. En el VPS se borran del `.env` tras el primer arranque (la app avisa en el log si siguen ahí)
 
 ## Correo
 
@@ -72,7 +72,7 @@ recuperación se puede probar en local sin montar nada.
 
 1. Editar la app en `tanke/`; no reinventar Vercel/serverless (ya retirado).
 2. Mantener el proxy server-side y el User-Agent.
-3. Puerto 3002 + labels Traefik `tanke.javistudio.dev` / red `public-edge`.
+3. Puerto 3002 + labels Traefik `tanke.javistudio.dev` / red `public-edge`. Sin `ports` en el compose: nada entra sin pasar por Traefik.
 4. `App.jsx` es la fuente de verdad del buscador.
 5. UI en español; prefs de búsqueda en `localStorage` (`tanke_*`).
 6. No commits/push sin confirmación explícita.

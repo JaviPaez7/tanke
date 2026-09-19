@@ -1,7 +1,9 @@
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:16.15-alpine
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     environment:
       POSTGRES_USER: tanke
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
@@ -18,10 +20,15 @@ services:
     image: ghcr.io/javipaez7/tanke:${IMAGE_TAG:-latest}
     restart: unless-stopped
     mem_limit: 256m
-    ports:
-      - '172.17.0.1:3002:3002'
+    # Sin `ports`: Traefik entra por la red public-edge y el healthcheck corre
+    # dentro del contenedor. Publicarlo en 172.17.0.1 lo dejaba al alcance de
+    # cualquier otro contenedor del bridge por defecto, saltandose Traefik.
+    security_opt:
+      - no-new-privileges:true
     environment:
       DATABASE_URL: postgresql://tanke:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/tanke
+      # Solo para el primer arranque (crean el primer admin). Borralas del .env
+      # despues: la contraseña en claro acabaria en cada backup de configuracion.
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       SNAPSHOT_PROVINCES: ${SNAPSHOT_PROVINCES:-35,38}

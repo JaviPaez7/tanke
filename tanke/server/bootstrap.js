@@ -52,10 +52,22 @@ Si ves un precio imposible, mándanos un aviso desde tu cuenta: horario mal, est
 
 export async function ensureAdmin(prisma) {
   const currentAdmin = await prisma.user.findFirst({ where: { role: "admin" } });
-  if (currentAdmin) return currentAdmin;
-
   const email = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
   const password = String(process.env.ADMIN_PASSWORD || "");
+
+  if (currentAdmin) {
+    // Las variables solo sirven para el primer arranque. Si siguen ahi, la
+    // contraseña en claro vive en el .env y acaba en cada backup de
+    // configuracion (local y offsite).
+    if (email || password) {
+      console.warn(
+        "Tanke: ya hay administrador; borra ADMIN_EMAIL y ADMIN_PASSWORD del .env " +
+          "(solo sirven para el primer arranque y la contraseña acaba en los backups).",
+      );
+    }
+    return currentAdmin;
+  }
+
   if (!email || !password) {
     console.warn(
       "Tanke: no hay administrador; define ADMIN_EMAIL y ADMIN_PASSWORD para crear el primero.",
