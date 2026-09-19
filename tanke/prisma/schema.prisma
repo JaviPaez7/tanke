@@ -25,11 +25,15 @@ model User {
   name         String
   role         Role     @default(user)
   active       Boolean  @default(true)
+  // Cuándo se confirmó la dirección desde el enlace del correo. Las alertas
+  // solo se envían a direcciones verificadas.
+  emailVerifiedAt DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  sessions  Session[]
-  resets    PasswordReset[]
+  sessions      Session[]
+  resets        PasswordReset[]
+  verifications EmailVerification[]
   favorites Favorite[]
   alerts    PriceAlert[]
   reports   StationReport[]
@@ -52,6 +56,21 @@ model PasswordReset {
   tokenHash String    @unique
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// Enlace de un solo uso para confirmar una dirección. Sin `newEmail` verifica
+// la actual; con él, aplica un cambio de email cuando se abre el enlace.
+model EmailVerification {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  newEmail  String?
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())

@@ -15,7 +15,8 @@ Encuentra las gasolineras más baratas de España según combustible, depósito 
 - Modo oscuro; preferencias de búsqueda en `localStorage`
 - PWA instalable
 - Cuentas: favoritas, alertas de precio, avisos e histórico de Canarias
-- Alertas de precio que avisan por email cuando una gasolinera baja de tu tope
+- Alertas de precio que avisan por email cuando una gasolinera baja de tu tope (solo a direcciones verificadas)
+- Verificación de email al registrarse (enlace de un solo uso, caduca en 24 h) y cambio de email confirmado desde la dirección nueva, con aviso a la antigua
 - Recuperación de contraseña por email (enlace de un solo uso, caduca en 30 min)
 - Ajustes de cuenta: cambiar nombre, email y contraseña, descargar tus datos y darte de baja
 - Guías editables con categorías y etiquetas, filtro por categoría en `/guias`, y panel `/admin` (usuarios, guías, categorías/etiquetas, avisos, ingesta)
@@ -61,6 +62,7 @@ npm test
 - Sesiones con token aleatorio (solo se guarda su hash), cookie `httpOnly` + `SameSite=Lax` + `Secure`; bcrypt para las contraseñas
 - Contraseñas: 8–128 caracteres, no pueden contener el email y se comprueban contra [Have I Been Pwned](https://haveibeenpwned.com/API/v3#PwnedPasswords) por rango k-anónimo (si el servicio no responde se aceptan y queda aviso en el log)
 - El login compara siempre contra un hash, exista o no la cuenta, para no delatar emails por tiempo de respuesta
+- Verificación de email en modelo suave: la cuenta se usa desde el registro, pero las alertas solo se envían a direcciones confirmadas; un cambio de email no se aplica hasta confirmarlo desde la nueva y avisa a la antigua. Cambiar o restablecer la contraseña anula cualquier cambio pendiente
 - Escrituras bajo `/api` protegidas frente a CSRF por `Sec-Fetch-Site`/`Origin` además de la cookie `Lax`
 - Rate limiting con `express-rate-limit`: por IP en auth y buscador, por usuario en las escrituras de la cuenta; topes por cuenta (20 alertas activas, 100 favoritas, 20 avisos al día) publicados en `/api/meta`
 - `/api/gas` solo acepta los 52 códigos de provincia o `all`; la caché del Ministerio está acotada

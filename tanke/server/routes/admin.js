@@ -48,6 +48,7 @@ export function registerAdminRoutes(app) {
           name: true,
           role: true,
           active: true,
+          emailVerifiedAt: true,
           createdAt: true,
           _count: { select: { favorites: true, alerts: true, reports: true } },
         },

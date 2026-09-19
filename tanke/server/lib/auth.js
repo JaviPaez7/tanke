@@ -31,6 +31,7 @@ export function publicUser(user) {
     email: user.email,
     name: user.name,
     role: user.role,
+    emailVerified: Boolean(user.emailVerifiedAt),
   };
 }
 
@@ -161,6 +162,9 @@ export async function consumePasswordReset(
       data: { passwordHash },
     });
     await tx.session.deleteMany({ where: { userId } });
+    // Un cambio de email pendiente pudo pedirlo quien tuviera la sesion
+    // robada: recuperar la cuenta lo anula.
+    await tx.emailVerification.deleteMany({ where: { userId, usedAt: null } });
     return user;
   });
 }
@@ -178,6 +182,7 @@ export async function changePasswordAndRevoke(
       data: { passwordHash },
     });
     await tx.passwordReset.deleteMany({ where: { userId } });
+    await tx.emailVerification.deleteMany({ where: { userId, usedAt: null } });
     const closed = await tx.session.deleteMany({ where: sessionWhere });
     return { user, closedSessions: closed.count };
   });

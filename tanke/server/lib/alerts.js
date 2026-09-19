@@ -54,8 +54,10 @@ export function shouldNotify(alert, currentMin, now = Date.now()) {
  * avisaba solo a quien ya estaba mirando.
  */
 export async function runAlerts(prisma, { now = Date.now() } = {}) {
+  // Solo a direcciones verificadas: sin este filtro cualquiera podia registrar
+  // el email de otra persona y hacer que Tanke le escribiera cada dia.
   const alerts = await prisma.priceAlert.findMany({
-    where: { active: true, user: { active: true } },
+    where: { active: true, user: { active: true, emailVerifiedAt: { not: null } } },
     include: { user: { select: { id: true, email: true, name: true } } },
   });
   if (alerts.length === 0) return { checked: 0, notified: 0, users: 0 };

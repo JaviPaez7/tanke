@@ -146,6 +146,7 @@ const NOINDEX_PATHS = new Set([
   "/registro",
   "/recuperar",
   "/restablecer",
+  "/verificar",
   "/cuenta",
   "/admin",
 ]);

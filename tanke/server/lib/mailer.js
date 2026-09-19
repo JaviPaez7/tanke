@@ -121,6 +121,50 @@ Si no has sido tú, entra ahora y vuelve a cambiarla: ${url}`,
   };
 }
 
+export function verifyEmailEmail({ name, url, hours, newEmail = null }) {
+  const intro = newEmail
+    ? `Has pedido cambiar el email de tu cuenta de Tanke a ${newEmail}. Pulsa el botón para confirmar que esta dirección es tuya; hasta entonces la cuenta sigue con la anterior.`
+    : "Gracias por crear tu cuenta en Tanke. Confirma tu email para recibir las alertas de precio: sin este paso no te enviaremos ningún correo.";
+  return {
+    subject: newEmail ? "Confirma tu nuevo email de Tanke" : "Confirma tu email de Tanke",
+    text: `Hola ${name}:
+
+${intro}
+
+${url}
+
+El enlace caduca en ${hours} horas y solo sirve una vez. Si no has sido tú, ignora este correo.`,
+    html: layout({
+      title: `Hola ${name}`,
+      intro,
+      ctaLabel: newEmail ? "Confirmar nuevo email" : "Confirmar mi email",
+      ctaUrl: url,
+      outro: `El enlace caduca en ${hours} horas y solo sirve una vez. Si no has sido tú, ignora este correo.`,
+    }),
+  };
+}
+
+// Va a la direccion antigua. Si el cambio no lo pidio el titular, es su aviso
+// para entrar y cambiar la contraseña antes de que se confirme.
+export function emailChangeNoticeEmail({ name, newEmail, url }) {
+  return {
+    subject: "Alguien ha pedido cambiar el email de tu cuenta de Tanke",
+    text: `Hola ${name}:
+
+Desde tu cuenta de Tanke se ha pedido cambiar el email a ${newEmail}. El cambio solo se aplicará cuando se confirme desde esa dirección.
+
+Si no has sido tú, entra ahora, cambia la contraseña y el cambio quedará anulado: ${url}`,
+    html: layout({
+      title: `Hola ${name}`,
+      intro: `Desde tu cuenta de Tanke se ha pedido cambiar el email a ${newEmail}. El cambio solo se aplicará cuando se confirme desde esa dirección.`,
+      ctaLabel: "Ir a mi cuenta",
+      ctaUrl: url,
+      outro:
+        "Si no has sido tú, entra ahora y cambia la contraseña: al hacerlo se anula el cambio pendiente.",
+    }),
+  };
+}
+
 export function priceAlertEmail({ name, alerts, url }) {
   const zona = (a) => a.municipality || a.province;
   const linea = (a) =>

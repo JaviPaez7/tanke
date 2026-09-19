@@ -50,10 +50,11 @@ falla se sirve la última copia buena hasta 6 h con `stale: true`.
 
 ## Cuentas
 
-- Registro/login: `/registro`, `/login`
+- Registro/login: `/registro`, `/login`. El registro abre sesión y manda un enlace de verificación (`/verificar?token=…`, 24 h, un solo uso); `server/lib/verification.js`
+- Verificación suave: sin confirmar se puede usar todo menos recibir correos de alerta (`runAlerts` filtra `emailVerifiedAt`). `/cuenta` enseña el aviso con "reenviar"
 - Recuperar contraseña: `/recuperar` → email → `/restablecer?token=…` (caduca a los 30 min, un solo uso)
 - Front-office extra: `/guias`, `/cuenta` (pestañas: favoritas, alertas, avisos, histórico, ajustes)
-- Ajustes: cambiar nombre/email/contraseña, exportar datos (JSON) y borrar la cuenta
+- Ajustes: cambiar nombre/email/contraseña, exportar datos (JSON) y borrar la cuenta. El email nuevo queda pendiente (`pendingEmail` en `/api/auth/me`) hasta abrir el enlace enviado a esa dirección; la antigua recibe aviso
 - Alertas: el job horario (`server/lib/alerts.js`) las evalúa y manda un correo;
   como mucho uno al día por alerta, salvo bajada de 3 céntimos sobre el último aviso
 - Back-office: `/admin` (rol `admin`): usuarios, guías, categorías/etiquetas, avisos e ingesta. Las reglas de validación de guías y taxonomía viven en `server/lib/content.js`; crear y editar validan lo mismo

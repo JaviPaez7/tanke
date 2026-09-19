@@ -51,6 +51,17 @@ describe("ejecución de alertas", () => {
     mocks.sendEmail.mockResolvedValue({ delivered: true });
   });
 
+  it("solo pide alertas de cuentas activas con el email verificado", async () => {
+    const prisma = prismaFor();
+    await runAlerts(prisma);
+
+    expect(prisma.priceAlert.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { active: true, user: { active: true, emailVerifiedAt: { not: null } } },
+      }),
+    );
+  });
+
   it("no marca la alerta cuando el transporte no entrega", async () => {
     mocks.sendEmail.mockResolvedValue({ delivered: false });
     const prisma = prismaFor();

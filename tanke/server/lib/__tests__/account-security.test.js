@@ -18,6 +18,9 @@ function transactionClient(overrides = {}) {
     session: {
       deleteMany: vi.fn(async () => ({ count: 2 })),
     },
+    emailVerification: {
+      deleteMany: vi.fn(async () => ({ count: 0 })),
+    },
     ...overrides,
   };
   return {

@@ -18,6 +18,7 @@ const Login = lazy(() => import("./pages/Login.jsx"));
 const NotFound = lazy(() => import("./pages/NotFound.jsx"));
 const Register = lazy(() => import("./pages/Register.jsx"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword.jsx"));
+const VerifyEmail = lazy(() => import("./pages/VerifyEmail.jsx"));
 
 registerSW({ immediate: true });
 
@@ -42,6 +43,7 @@ createRoot(document.getElementById("root")).render(
             <Route path="/registro" element={<Register />} />
             <Route path="/recuperar" element={<ForgotPassword />} />
             <Route path="/restablecer" element={<ResetPassword />} />
+            <Route path="/verificar" element={<VerifyEmail />} />
             <Route path="/cuenta" element={<Account />} />
             <Route path="/guias" element={<Guides />} />
             <Route path="/guias/:slug" element={<GuideArticle />} />
