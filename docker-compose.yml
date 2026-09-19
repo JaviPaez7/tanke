@@ -37,6 +37,8 @@ services:
       APP_URL: ${APP_URL:-https://tanke.javistudio.dev}
       SMTP_URL: ${SMTP_URL:-}
       EMAIL_FROM: ${EMAIL_FROM:-Tanke <no-reply@mail.javistudio.dev>}
+      # CSP en modo informe hasta que valga true (ver server/lib/csp.js).
+      CSP_ENFORCE: ${CSP_ENFORCE:-false}
     # Sin esto Docker no sabia si la app seguia viva: un proceso Node colgado
     # se quedaba en "Up" y Traefik le seguia mandando trafico. La imagen es
     # node-slim, asi que la sonda va con el propio node en vez de curl.

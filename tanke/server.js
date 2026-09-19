@@ -27,6 +27,14 @@ import { mountApi } from "./server/api.js";
 import { bootstrap } from "./server/bootstrap.js";
 import { prisma } from "./server/db.js";
 import { startBackgroundJobs } from "./server/jobs.js";
+import { rateLimit } from "./server/lib/auth.js";
+import {
+  buildPolicy,
+  cspHeaderName,
+  cspMiddleware,
+  inlineScriptHashes,
+  summarizeReport,
+} from "./server/lib/csp.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -34,6 +42,35 @@ const PORT = process.env.PORT || 3002;
 const distDir = path.join(__dirname, "dist");
 
 app.set("trust proxy", 1);
+
+// CSP (ver server/lib/csp.js). El hash sale del index.html construido; sin
+// dist (desarrollo con Vite) no hay script inline que permitir.
+const shellPath = path.join(distDir, "index.html");
+const scriptHashes = fs.existsSync(shellPath)
+  ? inlineScriptHashes(fs.readFileSync(shellPath, "utf8"))
+  : [];
+app.use(cspMiddleware({ policy: buildPolicy({ scriptHashes }) }));
+
+// Informes del navegador. Fuera de mountApi: no lleva sesion ni cookies y el
+// navegador lo manda por su cuenta. 204 siempre: un informe malformado no es
+// un error del servidor ni merece respuesta.
+app.post(
+  "/api/csp-report",
+  rateLimit({ max: 20 }),
+  express.json({
+    type: ["application/csp-report", "application/reports+json", "application/json"],
+    limit: "10kb",
+  }),
+  (req, res) => {
+    const r = summarizeReport(req.body);
+    console.warn(
+      `CSP (${cspHeaderName() === "Content-Security-Policy" ? "bloqueado" : "informe"}): ` +
+        `${r.directive} → ${r.blocked} en ${r.document}${r.sample !== "-" ? ` · ${r.sample}` : ""}`,
+    );
+    res.status(204).end();
+  },
+);
+
 app.use(express.json({ limit: "200kb" }));
 mountApi(app);
 
