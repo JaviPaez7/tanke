@@ -8,8 +8,8 @@ on:
       - 'docs/**'
   # En un PR se pasa lint, tests y la construcción de la imagen (sin publicar
   # ni desplegar): un Dockerfile roto se ve antes de fusionar, no en producción.
+  # Sin filtro de rama base: los PR apilados sobre otra rama también se comprueban.
   pull_request:
-    branches: [main]
     paths-ignore:
       - '**.md'
       - 'docs/**'
