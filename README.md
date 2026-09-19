@@ -56,6 +56,16 @@ npm run lint
 npm test
 ```
 
+## Seguridad
+
+- Sesiones con token aleatorio (solo se guarda su hash), cookie `httpOnly` + `SameSite=Lax` + `Secure`; bcrypt para las contraseñas
+- Contraseñas: 8–128 caracteres, no pueden contener el email y se comprueban contra [Have I Been Pwned](https://haveibeenpwned.com/API/v3#PwnedPasswords) por rango k-anónimo (si el servicio no responde se aceptan y queda aviso en el log)
+- El login compara siempre contra un hash, exista o no la cuenta, para no delatar emails por tiempo de respuesta
+- Escrituras bajo `/api` protegidas frente a CSRF por `Sec-Fetch-Site`/`Origin` además de la cookie `Lax`
+- Rate limiting con `express-rate-limit`: por IP en auth y buscador, por usuario en las escrituras de la cuenta; topes por cuenta (20 alertas activas, 100 favoritas, 20 avisos al día) publicados en `/api/meta`
+- `/api/gas` solo acepta los 52 códigos de provincia o `all`; la caché del Ministerio está acotada
+- Riesgos aceptados: el registro responde 409 si el email ya existe (enumeración de cuentas); el limitador vive en memoria y se reinicia con el contenedor
+
 ## Despliegue
 
 - **Docker / VPS:** `tanke/Dockerfile` (Express en `:3002`) + `docker-compose.yml` (app + Postgres) → `tanke.javistudio.dev`

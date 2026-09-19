@@ -1,5 +1,6 @@
 import cookieParser from "cookie-parser";
 import { attachUser } from "./lib/auth.js";
+import { rejectCrossSite } from "./lib/csrf.js";
 import { registerAdminRoutes } from "./routes/admin.js";
 import { registerArticleRoutes } from "./routes/articles.js";
 import { registerAuthRoutes } from "./routes/auth.js";
@@ -9,6 +10,7 @@ import { registerMetaRoutes } from "./routes/meta.js";
 
 export function mountApi(app) {
   app.use(cookieParser());
+  app.use("/api", rejectCrossSite);
   app.use("/api", attachUser);
 
   registerGasRoute(app);

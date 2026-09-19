@@ -175,6 +175,38 @@ describe("fetchStationsCached", () => {
     }
   });
 
+  it("rechaza ids fuera de la lista blanca sin tocar el Ministerio", async () => {
+    const { fetchStationsCached, InvalidProvinceError } = await loadStations();
+    const spy = stubFetch(async () => ({
+      ok: true,
+      json: async () => ({ ListaEESSPrecio: [govStation()] }),
+    }));
+
+    // El Ministerio ignora lo que va detras del id: cada variante era una
+    // entrada de cache nueva con la provincia entera dentro.
+    for (const id of ["35?x=1", "35/", "../x", "99", "", "35 "]) {
+      await expect(fetchStationsCached(id)).rejects.toBeInstanceOf(InvalidProvinceError);
+    }
+    expect(spy).not.toHaveBeenCalled();
+
+    await expect(fetchStationsCached("35")).resolves.toMatchObject({ stale: false });
+    await expect(fetchStationsCached("all")).resolves.toMatchObject({ stale: false });
+  });
+
+  it("nunca guarda mas entradas que el tope aunque cambie la lista blanca", async () => {
+    const { fetchStationsCached, VALID_STATION_IDS, cacheSize } = await loadStations();
+    stubFetch(async () => ({
+      ok: true,
+      json: async () => ({ ListaEESSPrecio: [govStation()] }),
+    }));
+
+    // Simula una lista blanca mucho mayor para forzar el desalojo.
+    for (let i = 0; i < 100; i += 1) VALID_STATION_IDS.add(`x${i}`);
+    for (let i = 0; i < 100; i += 1) await fetchStationsCached(`x${i}`);
+
+    expect(cacheSize()).toBeLessThanOrEqual(64);
+  });
+
   it("no cachea una respuesta de error del Ministerio", async () => {
     const { fetchStationsCached } = await loadStations();
     stubFetch(async () => ({ ok: false, status: 403, json: async () => ({}) }));

@@ -1,5 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import bcrypt from "bcryptjs";
+import { rateLimit as expressRateLimit, ipKeyGenerator } from "express-rate-limit";
 import { prisma } from "../db.js";
 
 export const SESSION_COOKIE = "tanke_session";
@@ -37,8 +38,71 @@ export async function hashPassword(password) {
   return bcrypt.hash(password, 10);
 }
 
+// Hash de relleno para cuando la cuenta no existe: el login tardaba unos
+// milisegundos menos si el email no estaba registrado, y con eso se podia
+// averiguar que emails tienen cuenta midiendo tiempos.
+const DUMMY_HASH = bcrypt.hashSync("tanke-cuenta-inexistente", 10);
+
 export async function verifyPassword(password, passwordHash) {
-  return bcrypt.compare(password, passwordHash);
+  const ok = await bcrypt.compare(String(password || ""), passwordHash || DUMMY_HASH);
+  return Boolean(passwordHash) && ok;
+}
+
+export const PASSWORD_MIN = 8;
+// bcrypt solo mira los primeros 72 bytes; el tope evita que alguien pegue un
+// texto enorme y crea que todo cuenta.
+export const PASSWORD_MAX = 128;
+
+const HIBP_RANGE_URL = "https://api.pwnedpasswords.com/range/";
+
+/**
+ * Consulta Have I Been Pwned por rango k-anonimo: solo viajan los 5 primeros
+ * caracteres del SHA-1, nunca la contraseña. Si el servicio no responde se
+ * acepta la contraseña (fail-open) y se deja aviso: bloquear registros porque
+ * un tercero este caido seria peor que saltarse la comprobacion una vez.
+ */
+export async function isPwnedPassword(password, { fetchImpl = fetch } = {}) {
+  const sha1 = createHash("sha1").update(String(password)).digest("hex").toUpperCase();
+  const prefix = sha1.slice(0, 5);
+  const suffix = sha1.slice(5);
+  try {
+    const res = await fetchImpl(HIBP_RANGE_URL + prefix, {
+      headers: { "Add-Padding": "true", "User-Agent": "Tanke (tanke.javistudio.dev)" },
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) throw new Error(`HIBP respondio ${res.status}`);
+    const text = await res.text();
+    // Con Add-Padding llegan filas falsas con recuento 0: no cuentan.
+    return text.split("\n").some((line) => {
+      const [hash, count] = line.trim().split(":");
+      return hash === suffix && Number(count) > 0;
+    });
+  } catch (error) {
+    console.warn("HIBP no disponible; contraseña aceptada sin comprobar:", error.message);
+    return false;
+  }
+}
+
+/**
+ * Unica politica de contraseñas para registro, restablecer y cambiar. Devuelve
+ * el mensaje para la persona o null si vale.
+ */
+export async function passwordProblem(password, { email, checkPwned = isPwnedPassword } = {}) {
+  const value = String(password || "");
+  if (value.length < PASSWORD_MIN) {
+    return `La contraseña debe tener al menos ${PASSWORD_MIN} caracteres.`;
+  }
+  if (value.length > PASSWORD_MAX) {
+    return `La contraseña no puede pasar de ${PASSWORD_MAX} caracteres.`;
+  }
+  const local = String(email || "").split("@")[0].trim().toLowerCase();
+  if (local.length >= 4 && value.toLowerCase().includes(local)) {
+    return "La contraseña no puede contener tu email.";
+  }
+  if (await checkPwned(value)) {
+    return "Esa contraseña aparece en filtraciones de datos conocidas. Elige otra.";
+  }
+  return null;
 }
 
 export function safeEqual(a, b) {
@@ -184,39 +248,37 @@ export async function attachUser(req, _res, next) {
   }
 }
 
-// Cada limitador lleva su propio recuento. Antes todos compartian un unico
-// Map de modulo, asi que los intentos de login gastaban el cupo de registro y
-// el de recuperar contraseña: bastaba con equivocarse de contraseña unas veces
-// para no poder ni pedir el enlace de recuperacion.
+// Limitador sobre express-rate-limit: cabeceras RateLimit-*, barrido de la
+// memoria y clave configurable. Cada llamada crea su propio recuento, asi que
+// equivocarse de contraseña no gasta el cupo de registro ni el de recuperar.
 //
-// El Map tampoco soltaba nunca las IPs que ya habian cumplido su ventana, y eso
-// crecia sin techo; el barrido las suelta como mucho una vez por minuto, que es
-// barato y acota la memoria al trafico real.
-export function rateLimit({ windowMs = 60_000, max = 8 } = {}) {
-  const hits = new Map();
-  let lastSweep = 0;
+// `key` permite limitar por usuario en vez de por IP (escrituras de /api/me);
+// si no hay usuario cae a la IP. Store en memoria: hay un solo proceso; si
+// algun dia hay varios, express-rate-limit acepta un store de Redis.
+export function rateLimit({
+  windowMs = 60_000,
+  max = 8,
+  key,
+  message = "Demasiados intentos. Espera un minuto.",
+} = {}) {
+  return expressRateLimit({
+    windowMs,
+    limit: max,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    keyGenerator: (req) => {
+      const custom = key?.(req);
+      return custom ? String(custom) : ipKeyGenerator(req.ip || "unknown");
+    },
+    handler: (_req, res) => {
+      res.status(429).json({ error: message });
+    },
+  });
+}
 
-  return (req, res, next) => {
-    const ip = req.ip || req.socket.remoteAddress || "unknown";
-    const now = Date.now();
-
-    if (now - lastSweep >= 60_000) {
-      lastSweep = now;
-      for (const [key, times] of hits) {
-        if (times.every((t) => now - t >= windowMs)) hits.delete(key);
-      }
-    }
-
-    const recent = (hits.get(ip) || []).filter((t) => now - t < windowMs);
-    if (recent.length >= max) {
-      return res
-        .status(429)
-        .json({ error: "Demasiados intentos. Espera un minuto." });
-    }
-    recent.push(now);
-    hits.set(ip, recent);
-    next();
-  };
+// Clave por usuario para las rutas que ya pasan por requireAuth.
+export function userKey(req) {
+  return req.user?.id ? `user:${req.user.id}` : null;
 }
 
 export function isEmail(value) {

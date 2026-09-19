@@ -1,11 +1,16 @@
-import { fetchStationsCached, nearestStation } from "../lib/stations.js";
+import {
+  fetchStationsCached,
+  isValidStationId,
+  nearestStation,
+} from "../lib/stations.js";
+import { rateLimit } from "../lib/auth.js";
 
 // Más allá de esto el usuario no está en España (o el dato no sirve para
 // elegir provincia) y es mejor no tocar su selector.
 const MAX_LOCATE_KM = 150;
 
 export function registerGasRoute(app) {
-  app.get("/api/gas/locate", async (req, res) => {
+  app.get("/api/gas/locate", rateLimit({ max: 30 }), async (req, res) => {
     const lat = Number(req.query.lat);
     const lng = Number(req.query.lng);
 
@@ -38,8 +43,22 @@ export function registerGasRoute(app) {
   // visitante abría su propia llamada al Ministerio). Ahora sale normalizado y
   // cacheado, y si el origen falla se sirve la copia anterior marcada `stale`
   // en vez de dejar la pantalla vacía.
-  app.get("/api/gas", async (req, res) => {
+  //
+  // Una provincia son ~80 KB cacheados: cupo holgado para que un aula entera
+  // detras de la misma IP no se quede sin buscador. "Toda España" son varios
+  // MB por respuesta y nadie la pide en bucle: cupo corto.
+  const provinceLimit = rateLimit({ max: 120 });
+  const nationalLimit = rateLimit({ max: 10 });
+  const gasLimit = (req, res, next) =>
+    (String(req.query.id) === "all" ? nationalLimit : provinceLimit)(req, res, next);
+
+  app.get("/api/gas", gasLimit, async (req, res) => {
     const id = String(req.query.id || "35");
+    // Se comprueba antes de tocar la caché: un id inventado no debe crear
+    // entradas ni llegar al Ministerio.
+    if (!isValidStationId(id)) {
+      return res.status(400).json({ error: "Provincia no válida." });
+    }
 
     try {
       const { stations, fetchedAt, stale } = await fetchStationsCached(id);
