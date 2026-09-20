@@ -27,6 +27,14 @@ export default defineConfig([
     },
   },
   {
+    // main.jsx solo monta la app: sus `lazy()` parecen componentes a la regla
+    // de Fast Refresh, pero el punto de entrada nunca se recarga en caliente.
+    files: ['src/main.jsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
+  {
     files: ['server.js', 'server/**/*.{js,mjs}', 'prisma/**/*.{js,mjs}', 'seo/**/*.{js,mjs}', 'scripts/**/*.{js,mjs}'],
     languageOptions: {
       globals: globals.node,

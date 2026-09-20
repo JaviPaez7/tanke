@@ -155,20 +155,16 @@ export default function Admin() {
   // dura, su botón se desactiva: evita el doble clic y el doble envío.
   const [pending, setPending] = useState(null);
 
-  useEffect(() => {
-    if (user?.role !== "admin") return;
-    reload();
-  }, [user]);
-
-  async function reload() {
-    try {
-      const [u, a, t, r, i] = await Promise.all([
-        api.adminUsers(),
-        api.adminArticles(),
-        api.adminTaxonomy(),
-        api.adminReports(),
-        api.ingestion(),
-      ]);
+  // Carga todo el panel. Los setState van dentro del then: es lo que la regla
+  // react-hooks/set-state-in-effect pide a lo que se llama desde un efecto.
+  function reload() {
+    return Promise.all([
+      api.adminUsers(),
+      api.adminArticles(),
+      api.adminTaxonomy(),
+      api.adminReports(),
+      api.ingestion(),
+    ]).then(([u, a, t, r, i]) => {
       setUsers(u.users);
       setArticles(a.articles);
       setCategories(t.categories);
@@ -176,10 +172,13 @@ export default function Admin() {
       setReports(r.reports);
       setRuns(i.runs);
       setSnapshots(i.snapshots);
-    } catch (err) {
-      setError(err.message);
-    }
+    });
   }
+
+  useEffect(() => {
+    if (user?.role !== "admin") return;
+    reload().catch((err) => setError(err.message));
+  }, [user]);
 
   async function reloadTaxonomy() {
     const t = await api.adminTaxonomy();

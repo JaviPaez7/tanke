@@ -13,13 +13,15 @@ export default function VerifyEmail() {
   const token = params.get("token") || "";
   const { user, ready, updateUser } = useAuth();
 
-  const [state, setState] = useState({ busy: true, error: "", result: null });
+  // Sin token no hay nada que confirmar: se sabe desde el primer render.
+  const [state, setState] = useState(() =>
+    token
+      ? { busy: true, error: "", result: null }
+      : { busy: false, error: "Falta el código del enlace.", result: null },
+  );
 
   useEffect(() => {
-    if (!token) {
-      setState({ busy: false, error: "Falta el código del enlace.", result: null });
-      return;
-    }
+    if (!token) return;
     let cancelled = false;
     api
       .verifyEmail({ token })
