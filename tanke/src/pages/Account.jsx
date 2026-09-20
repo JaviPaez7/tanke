@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
@@ -34,6 +34,9 @@ export default function Account() {
   const tab = TABS.some((t) => t.id === params.get("tab"))
     ? params.get("tab")
     : "favoritas";
+  // Referencias a los botones de pestaña, para poder mover el foco con las
+  // flechas (patrón ARIA de tablist).
+  const tabRefs = useRef({});
 
   const [favorites, setFavorites] = useState([]);
   const [alerts, setAlerts] = useState([]);
@@ -99,6 +102,23 @@ export default function Account() {
     const next = new URLSearchParams(params);
     next.set("tab", id);
     setParams(next, { replace: true });
+  }
+
+  // Patrón ARIA de pestañas: con roving tabindex solo la activa es tabulable,
+  // las flechas mueven el foco entre ellas y Tab sale del grupo en vez de
+  // recorrerlo entero. Home/End van a los extremos.
+  function onTabKeyDown(event, index) {
+    const ultimo = TABS.length - 1;
+    let destino = null;
+    if (event.key === "ArrowRight") destino = index === ultimo ? 0 : index + 1;
+    else if (event.key === "ArrowLeft") destino = index === 0 ? ultimo : index - 1;
+    else if (event.key === "Home") destino = 0;
+    else if (event.key === "End") destino = ultimo;
+    if (destino === null) return;
+    event.preventDefault();
+    const siguiente = TABS[destino];
+    setTab(siguiente.id);
+    tabRefs.current[siguiente.id]?.focus();
   }
 
   async function refreshAlerts() {
@@ -200,14 +220,25 @@ export default function Account() {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2 mb-6" role="tablist">
-        {TABS.map((item) => (
+      <div
+        className="flex flex-wrap gap-2 mb-6"
+        role="tablist"
+        aria-label="Secciones de tu cuenta"
+      >
+        {TABS.map((item, index) => (
           <button
             key={item.id}
+            ref={(el) => {
+              tabRefs.current[item.id] = el;
+            }}
+            id={`tab-${item.id}`}
             type="button"
             role="tab"
             aria-selected={tab === item.id}
+            aria-controls={`panel-${item.id}`}
+            tabIndex={tab === item.id ? 0 : -1}
             onClick={() => setTab(item.id)}
+            onKeyDown={(event) => onTabKeyDown(event, index)}
             className={`h-10 px-4 rounded-xl text-sm font-bold cursor-pointer ${
               tab === item.id
                 ? "bg-indigo-600 text-white"
@@ -235,7 +266,13 @@ export default function Account() {
       )}
 
       {!loading && tab === "favoritas" && (
-        <section className="grid gap-3">
+        <section
+          id="panel-favoritas"
+          role="tabpanel"
+          aria-labelledby="tab-favoritas"
+          tabIndex={0}
+          className="grid gap-3"
+        >
           {favorites.length === 0 && (
             <EmptyState title="Ninguna gasolinera guardada">
               <Link to="/" className="font-bold text-indigo-600">
@@ -306,7 +343,13 @@ export default function Account() {
       )}
 
       {!loading && tab === "alertas" && (
-        <section className="grid md:grid-cols-2 gap-6">
+        <section
+          id="panel-alertas"
+          role="tabpanel"
+          aria-labelledby="tab-alertas"
+          tabIndex={0}
+          className="grid md:grid-cols-2 gap-6"
+        >
           <form
             onSubmit={addAlert}
             className="bg-white dark:bg-slate-900 rounded-3xl p-5 space-y-3"
@@ -429,7 +472,13 @@ export default function Account() {
       )}
 
       {!loading && tab === "avisos" && (
-        <section className="grid md:grid-cols-2 gap-6">
+        <section
+          id="panel-avisos"
+          role="tabpanel"
+          aria-labelledby="tab-avisos"
+          tabIndex={0}
+          className="grid md:grid-cols-2 gap-6"
+        >
           <form
             onSubmit={addReport}
             className="bg-white dark:bg-slate-900 rounded-3xl p-5 space-y-3"
@@ -520,7 +569,13 @@ export default function Account() {
       )}
 
       {!loading && tab === "historico" && (
-        <section className="bg-white dark:bg-slate-900 rounded-3xl p-5">
+        <section
+          id="panel-historico"
+          role="tabpanel"
+          aria-labelledby="tab-historico"
+          tabIndex={0}
+          className="bg-white dark:bg-slate-900 rounded-3xl p-5"
+        >
           <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
             <div>
               <h2 className="font-black">Media diaria en Canarias</h2>
@@ -542,7 +597,16 @@ export default function Account() {
         </section>
       )}
 
-      {tab === "ajustes" && <AccountSettings />}
+      {tab === "ajustes" && (
+        <div
+          id="panel-ajustes"
+          role="tabpanel"
+          aria-labelledby="tab-ajustes"
+          tabIndex={0}
+        >
+          <AccountSettings />
+        </div>
+      )}
     </PageShell>
   );
 }

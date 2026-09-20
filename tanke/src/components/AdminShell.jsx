@@ -137,23 +137,29 @@ export function AdminShell({ current, onSelect, badges = {}, children }) {
           </div>
         </header>
 
-        <div className="border-b border-slate-200 bg-white px-4 py-6 dark:border-slate-800 dark:bg-slate-900 lg:px-10 lg:py-8">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0">
-              <h1 className="text-2xl font-black tracking-tight lg:text-3xl">
-                {section.title}
-              </h1>
-              <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-                {section.description}
-              </p>
-            </div>
-            <div className="hidden lg:block">
-              <DarkToggle isDark={isDark} setIsDark={setIsDark} />
+        <main>
+          {/* La barra de título vivía fuera de <main>, así que su contenido
+              (incluido el h1 de la sección) quedaba fuera de todo landmark.
+              Se mueve dentro sin tocar los paddings: <main> no lleva ninguno
+              y cada bloque conserva el suyo. */}
+          <div className="border-b border-slate-200 bg-white px-4 py-6 dark:border-slate-800 dark:bg-slate-900 lg:px-10 lg:py-8">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="min-w-0">
+                <h1 className="text-2xl font-black tracking-tight lg:text-3xl">
+                  {section.title}
+                </h1>
+                <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                  {section.description}
+                </p>
+              </div>
+              <div className="hidden lg:block">
+                <DarkToggle isDark={isDark} setIsDark={setIsDark} />
+              </div>
             </div>
           </div>
-        </div>
 
-        <main className="px-4 py-6 lg:px-10 lg:py-8">{children}</main>
+          <div className="px-4 py-6 lg:px-10 lg:py-8">{children}</div>
+        </main>
       </div>
     </div>
   );

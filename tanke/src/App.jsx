@@ -115,14 +115,14 @@ const PriceTag = React.memo(({ label, price, highlight, currentAverage }) => {
   let colorClass =
     "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-200";
   let textClass = "text-slate-700 dark:text-slate-200";
-  let labelClass = "text-slate-400 dark:text-slate-500";
+  let labelClass = "text-slate-600 dark:text-slate-400";
 
   if (isAvailable && highlight && currentAverage > 0) {
     if (price < currentAverage - 0.01) {
       colorClass =
         "bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 shadow-sm";
       textClass = "text-green-700 dark:text-green-400";
-      labelClass = "text-green-600 dark:text-green-500";
+      labelClass = "text-green-700 dark:text-green-400";
     } else if (price > currentAverage + 0.01) {
       colorClass =
         "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 shadow-sm";
@@ -135,10 +135,13 @@ const PriceTag = React.memo(({ label, price, highlight, currentAverage }) => {
       labelClass = "text-orange-500 dark:text-orange-500";
     }
   } else if (!isAvailable) {
+    // Sin `opacity-40`: a 40 % el texto quedaba a 1,14:1, prácticamente
+    // invisible. Se mantiene la jerarquía con un gris más claro que el del
+    // precio normal (slate-600), pero legible.
     colorClass =
-      "bg-slate-50 dark:bg-slate-800/50 border-transparent opacity-40";
-    textClass = "text-slate-300 dark:text-slate-600";
-    labelClass = "text-slate-300 dark:text-slate-600";
+      "bg-slate-50 dark:bg-slate-800/50 border-transparent";
+    textClass = "text-slate-500 dark:text-slate-400";
+    labelClass = "text-slate-500 dark:text-slate-400";
   }
 
   return (
@@ -157,13 +160,13 @@ const PriceTag = React.memo(({ label, price, highlight, currentAverage }) => {
               {formatPrice(price)}
             </span>
             <span
-              className={`text-[10px] font-medium ${isAvailable && highlight ? textClass : "text-slate-400 dark:text-slate-500"}`}
+              className={`text-[10px] font-medium ${isAvailable && highlight ? textClass : "text-slate-600 dark:text-slate-400"}`}
             >
               €
             </span>
           </>
         ) : (
-          <span className="font-bold text-lg text-slate-300 dark:text-slate-600">
+          <span className="font-bold text-lg text-slate-500 dark:text-slate-400">
             --
           </span>
         )}
@@ -528,8 +531,9 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-100 pb-20 transition-colors duration-500">
-      {/* HERO SECTION */}
-      <div className="relative pt-20 pb-12 px-4 overflow-hidden shadow-2xl bg-slate-900 min-h-75 flex flex-col justify-center items-center">
+      {/* HERO SECTION — contiene el h1 y la navegación de la página, así que
+          es el encabezado real: <header> y no un <div> suelto. */}
+      <header className="relative pt-20 pb-12 px-4 overflow-hidden shadow-2xl bg-slate-900 min-h-75 flex flex-col justify-center items-center">
         <div className="absolute inset-0 z-0">
           {/* Antes era un JPEG de 939 KB servido desde Unsplash: un tercero en
               la ruta crítica del LCP, a 2670 px de ancho incluso en móvil y sin
@@ -571,9 +575,9 @@ function App() {
             España. Precios en tiempo real de gasolina 95, 98 y diésel.
           </p>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-7xl mx-auto px-4 -mt-8 relative z-20">
+      <main className="max-w-7xl mx-auto px-4 -mt-8 relative z-20">
         <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-white/50 dark:border-slate-800 mb-8 p-4 md:p-6 transition-colors duration-300">
           {/* BARRA DE CONTROLES PRINCIPAL */}
           {/* Los tres controles solo caben en una fila desde lg: en tablet se
@@ -637,7 +641,7 @@ function App() {
               <div className="flex items-baseline justify-between mb-2 gap-2">
                 <label
                   htmlFor="tank-size"
-                  className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500"
+                  className="text-[10px] font-black uppercase text-slate-600 dark:text-slate-400"
                 >
                   Simular depósito
                 </label>
@@ -645,7 +649,7 @@ function App() {
                   className={`text-xs font-black tabular-nums ${
                     tankSize > 0
                       ? "text-indigo-600 dark:text-indigo-400"
-                      : "text-slate-400 dark:text-slate-500"
+                      : "text-slate-600 dark:text-slate-400"
                   }`}
                 >
                   {tankSize > 0 ? `${tankSize} L` : "Desactivado"}
@@ -665,7 +669,7 @@ function App() {
                 }}
                 className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-600"
               />
-              <div className="flex justify-between mt-1.5 text-[9px] font-bold text-slate-400 dark:text-slate-500 tabular-nums">
+              <div className="flex justify-between mt-1.5 text-[9px] font-bold text-slate-600 dark:text-slate-400 tabular-nums">
                 <span>0 L</span>
                 <span>100 L</span>
               </div>
@@ -785,7 +789,7 @@ function App() {
 
           {/* FILTROS COMBUSTIBLE */}
           <div className="mt-5 pt-5 border-t border-slate-100 dark:border-slate-800">
-            <span className="block text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 mb-2">
+            <span className="block text-[10px] font-black uppercase text-slate-600 dark:text-slate-400 mb-2">
               Combustible
             </span>
             {/* flex-wrap, no scroll horizontal: con cinco opciones caben en dos
@@ -818,7 +822,7 @@ function App() {
 
           {/* SELECTORES DE ZONA */}
           <div className="mt-5 pt-5 border-t border-slate-100 dark:border-slate-800">
-            <span className="block text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 mb-2">
+            <span className="block text-[10px] font-black uppercase text-slate-600 dark:text-slate-400 mb-2">
               Zona
             </span>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -918,7 +922,7 @@ function App() {
               </p>
               <div className="flex items-center gap-3">
                 {currentAverage > 0 && (
-                  <p className="text-xs text-slate-400 dark:text-slate-500 tabular-nums">
+                  <p className="text-xs text-slate-600 dark:text-slate-400 tabular-nums">
                     Media: {formatPrice(currentAverage)}&nbsp;€
                   </p>
                 )}
@@ -968,14 +972,17 @@ function App() {
                     )}
 
                     <div className="flex-1 min-w-0">
-                      <h3
+                      {/* h2 y no h3: la página solo tiene un h1 (el titular del
+                          hero), así que saltar a h3 rompía el orden de
+                          encabezados. */}
+                      <h2
                         className="font-black text-slate-800 dark:text-white text-lg leading-tight truncate"
                         title={station.name}
                       >
                         {station.name}
-                      </h3>
+                      </h2>
                       <p
-                        className="text-xs text-slate-400 dark:text-slate-500 font-medium truncate"
+                        className="text-xs text-slate-600 dark:text-slate-400 font-medium truncate"
                         title={station.address}
                       >
                         {station.address}
@@ -1083,7 +1090,7 @@ function App() {
           </Suspense>
           </>
         )}
-      </div>
+      </main>
     </div>
   );
 }

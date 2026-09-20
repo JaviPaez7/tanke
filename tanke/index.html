@@ -223,11 +223,14 @@
         font-weight: 700;
         letter-spacing: 0.09em;
         text-transform: uppercase;
-        color: #64748b;
+        /* slate-600 sobre el fondo slate-100 del footer: 6,92:1. El anterior
+           #64748b daba 4,34:1 y no llegaba al mínimo para texto de 11 px. */
+        color: #45556c;
         margin: 0 0 0.9rem;
       }
       html.dark .site-footer h3 {
-        color: #726f8b;
+        /* Antes #726f8b, que sobre el fondo oscuro se quedaba en 3,89:1. */
+        color: #94a3b8;
       }
       .site-footer__cols-title {
         margin-bottom: 1.5rem;
