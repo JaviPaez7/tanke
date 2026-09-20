@@ -1,5 +1,10 @@
 # Avisa de dependencias con vulnerabilidades o desactualizadas. Es lo que
 # habria avisado de nodemailer (GHSA-2x7j-588g-ccc2) antes de la auditoria.
+#
+# Los saltos de version mayor de la base de datos, del runtime y de Prisma no
+# son parches: Postgres 18 no arranca sobre un volumen de 16, cambiar de Node
+# es una decision y Prisma 7 cambia la configuracion. Esos se planifican a
+# mano; Dependabot solo propone menores y parches para ellos.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -14,18 +19,29 @@ updates:
       produccion-menores:
         dependency-type: production
         update-types: [minor, patch]
+    ignore:
+      - dependency-name: prisma
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@prisma/client"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: docker
     directory: /tanke
     schedule:
       interval: weekly
       day: monday
+    ignore:
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: docker-compose
     directory: /
     schedule:
       interval: weekly
       day: monday
+    ignore:
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
