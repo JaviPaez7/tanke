@@ -56,6 +56,8 @@ export const api = {
   article: (slug) => request(`/api/articles/${encodeURIComponent(slug)}`),
   categories: () => request("/api/categories"),
   adminUsers: () => request("/api/admin/users"),
+  createUser: (body) =>
+    request("/api/admin/users", { method: "POST", body }),
   patchUser: (id, body) =>
     request(`/api/admin/users/${id}`, { method: "PATCH", body }),
   adminArticles: () => request("/api/admin/articles"),

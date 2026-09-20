@@ -9,6 +9,7 @@ import {
   EmptyState,
   Field,
   GhostButton,
+  PasswordInput,
   PrimaryButton,
   SelectInput,
   StatusPill,
@@ -32,6 +33,14 @@ const emptyArticle = {
   published: false,
   categoryId: "",
   tags: "",
+};
+
+const emptyUser = {
+  name: "",
+  email: "",
+  password: "",
+  role: "user",
+  emailVerified: false,
 };
 
 // Mismos mínimos que valida el servidor (server/lib/content.js): el navegador
@@ -146,6 +155,7 @@ export default function Admin() {
   const [runs, setRuns] = useState([]);
   const [snapshots, setSnapshots] = useState(0);
   const [form, setForm] = useState(emptyArticle);
+  const [userForm, setUserForm] = useState(emptyUser);
   const [editing, setEditing] = useState(null);
   const [newCategory, setNewCategory] = useState("");
   const [query, setQuery] = useState("");
@@ -222,6 +232,18 @@ export default function Admin() {
     setParams(id === "overview" ? {} : { seccion: id }, { replace: true });
     setError("");
     setNotice("");
+  }
+
+  async function createUser(event) {
+    event.preventDefault();
+    const ok = await run("user-form", async () => {
+      const data = await api.createUser(userForm);
+      setUsers((previous) => [data.user, ...previous]);
+    });
+    if (ok) {
+      setUserForm(emptyUser);
+      setNotice("Usuario creado. Ya puede iniciar sesión.");
+    }
   }
 
   async function saveArticle(event) {
@@ -404,126 +426,212 @@ export default function Admin() {
       )}
 
       {section === "users" && (
-        <Panel>
-          <div className="p-4">
-            <TextInput
-              type="search"
-              placeholder="Buscar por nombre o email"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label="Buscar usuarios"
-              className="max-w-sm"
-            />
-          </div>
-          {filteredUsers.length === 0 ? (
-            <p className="px-5 pb-6 text-sm text-slate-600 dark:text-slate-300">
-              Ningún usuario coincide con «{query}».
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-160 text-sm">
-                <thead>
-                  <tr className="text-left text-[10px] font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                    <th className="px-5 py-3 font-black">Usuario</th>
-                    <th className="px-5 py-3 font-black">Alta</th>
-                    <th className="px-5 py-3 font-black">Actividad</th>
-                    <th className="px-5 py-3 font-black">Rol</th>
-                    <th className="px-5 py-3 font-black">Estado</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {filteredUsers.map((row) => {
-                    const self = row.id === user.id;
-                    const busy = pending === row.id;
-                    return (
-                      <tr
-                        key={row.id}
-                        className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                      >
-                        <td className="px-5 py-3">
-                          <span className="block font-bold">
-                            {row.name}
-                            {self && (
-                              <span className="ml-2 rounded-md bg-indigo-100 px-1.5 py-0.5 text-[10px] font-black uppercase text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
-                                Tú
-                              </span>
-                            )}
-                          </span>
-                          <span className="block text-xs text-slate-500 dark:text-slate-400">
-                            {row.email}
-                            {!row.emailVerifiedAt && (
-                              <span
-                                title="Aún no ha confirmado su email: no recibe alertas"
-                                className="ml-2 rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-black uppercase text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
-                              >
-                                Sin verificar
-                              </span>
-                            )}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3 tabular-nums text-slate-600 dark:text-slate-300">
-                          {formatDate(row.createdAt)}
-                        </td>
-                        <td className="px-5 py-3 tabular-nums text-slate-600 dark:text-slate-300">
-                          {row._count?.favorites ?? 0} fav ·{" "}
-                          {row._count?.alerts ?? 0} alertas ·{" "}
-                          {row._count?.reports ?? 0} avisos
-                        </td>
-                        <td className="px-5 py-3">
-                          <SelectInput
-                            value={row.role}
-                            aria-label={`Rol de ${row.name}`}
-                            disabled={self || busy}
-                            title={self ? "No puedes cambiar tu propio rol" : undefined}
-                            onChange={(e) =>
-                              run(row.id, async () => {
-                                await api.patchUser(row.id, { role: e.target.value });
-                                const data = await api.adminUsers();
-                                setUsers(data.users);
-                              })
-                            }
-                            size="sm"
-                            width="auto"
-                          >
-                            <option value="user">Usuario</option>
-                            <option value="admin">Administrador</option>
-                          </SelectInput>
-                        </td>
-                        <td className="px-5 py-3">
-                          <button
-                            type="button"
-                            disabled={self || busy}
-                            onClick={() =>
-                              run(row.id, async () => {
-                                await api.patchUser(row.id, { active: !row.active });
-                                const data = await api.adminUsers();
-                                setUsers(data.users);
-                              })
-                            }
-                            title={
-                              self
-                                ? "No puedes desactivar tu propia cuenta"
-                                : row.active
-                                  ? "Desactivar esta cuenta"
-                                  : "Reactivar esta cuenta"
-                            }
-                            className={`h-9 rounded-lg px-3 text-xs font-black uppercase tracking-wide transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
-                              row.active
-                                ? "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-950/50 dark:text-green-300 dark:hover:bg-green-900/60"
-                                : "bg-slate-200 text-slate-700 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                            }`}
-                          >
-                            {busy ? "…" : row.active ? "Activa" : "Desactivada"}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+        <div className="grid items-start gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
+          <Panel title="Crear usuario">
+            <form onSubmit={createUser} className="space-y-4 p-5">
+              <Field label="Nombre">
+                <TextInput
+                  required
+                  minLength={2}
+                  maxLength={60}
+                  autoComplete="off"
+                  value={userForm.name}
+                  onChange={(event) =>
+                    setUserForm((current) => ({ ...current, name: event.target.value }))
+                  }
+                />
+              </Field>
+              <Field label="Email">
+                <TextInput
+                  required
+                  type="email"
+                  inputMode="email"
+                  autoComplete="off"
+                  value={userForm.email}
+                  onChange={(event) =>
+                    setUserForm((current) => ({ ...current, email: event.target.value }))
+                  }
+                />
+              </Field>
+              <Field label="Contraseña" hint="Entre 8 y 128 caracteres.">
+                <PasswordInput
+                  required
+                  minLength={8}
+                  maxLength={128}
+                  autoComplete="new-password"
+                  value={userForm.password}
+                  onChange={(event) =>
+                    setUserForm((current) => ({ ...current, password: event.target.value }))
+                  }
+                />
+              </Field>
+              <Field label="Rol">
+                <SelectInput
+                  value={userForm.role}
+                  onChange={(event) =>
+                    setUserForm((current) => ({ ...current, role: event.target.value }))
+                  }
+                >
+                  <option value="user">Usuario</option>
+                  <option value="admin">Administrador</option>
+                </SelectInput>
+              </Field>
+              <label className="flex items-start gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={userForm.emailVerified}
+                  onChange={(event) =>
+                    setUserForm((current) => ({
+                      ...current,
+                      emailVerified: event.target.checked,
+                    }))
+                  }
+                  className="mt-1 h-4 w-4 accent-indigo-600"
+                />
+                <span>
+                  <span className="block font-bold">Email verificado</span>
+                  <span className="block text-xs text-slate-500 dark:text-slate-400">
+                    Márcalo solo si has comprobado que la dirección pertenece a esa persona.
+                  </span>
+                </span>
+              </label>
+              <PrimaryButton
+                type="submit"
+                disabled={
+                  pending === "user-form" ||
+                  (userForm.password.length > 0 && userForm.password.length < 8)
+                }
+                className="w-full"
+              >
+                {pending === "user-form" ? "Creando…" : "Crear usuario"}
+              </PrimaryButton>
+              <p className="text-xs font-medium leading-relaxed text-slate-500 dark:text-slate-400">
+                La cuenta queda activa y puede iniciar sesión inmediatamente.
+              </p>
+            </form>
+          </Panel>
+
+          <Panel title="Usuarios registrados" className="min-w-0">
+            <div className="p-4">
+              <TextInput
+                type="search"
+                placeholder="Buscar por nombre o email"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Buscar usuarios"
+                className="max-w-sm"
+              />
             </div>
-          )}
-        </Panel>
+            {filteredUsers.length === 0 ? (
+              <p className="px-5 pb-6 text-sm text-slate-600 dark:text-slate-300">
+                Ningún usuario coincide con «{query}».
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-160 text-sm">
+                  <thead>
+                    <tr className="text-left text-[10px] font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      <th className="px-5 py-3 font-black">Usuario</th>
+                      <th className="px-5 py-3 font-black">Alta</th>
+                      <th className="px-5 py-3 font-black">Actividad</th>
+                      <th className="px-5 py-3 font-black">Rol</th>
+                      <th className="px-5 py-3 font-black">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {filteredUsers.map((row) => {
+                      const self = row.id === user.id;
+                      const busy = pending === row.id;
+                      return (
+                        <tr
+                          key={row.id}
+                          className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                        >
+                          <td className="px-5 py-3">
+                            <span className="block font-bold">
+                              {row.name}
+                              {self && (
+                                <span className="ml-2 rounded-md bg-indigo-100 px-1.5 py-0.5 text-[10px] font-black uppercase text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
+                                  Tú
+                                </span>
+                              )}
+                            </span>
+                            <span className="block text-xs text-slate-500 dark:text-slate-400">
+                              {row.email}
+                              {!row.emailVerifiedAt && (
+                                <span
+                                  title="Aún no ha confirmado su email: no recibe alertas"
+                                  className="ml-2 rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-black uppercase text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
+                                >
+                                  Sin verificar
+                                </span>
+                              )}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3 tabular-nums text-slate-600 dark:text-slate-300">
+                            {formatDate(row.createdAt)}
+                          </td>
+                          <td className="px-5 py-3 tabular-nums text-slate-600 dark:text-slate-300">
+                            {row._count?.favorites ?? 0} fav ·{" "}
+                            {row._count?.alerts ?? 0} alertas ·{" "}
+                            {row._count?.reports ?? 0} avisos
+                          </td>
+                          <td className="px-5 py-3">
+                            <SelectInput
+                              value={row.role}
+                              aria-label={`Rol de ${row.name}`}
+                              disabled={self || busy}
+                              title={self ? "No puedes cambiar tu propio rol" : undefined}
+                              onChange={(e) =>
+                                run(row.id, async () => {
+                                  await api.patchUser(row.id, { role: e.target.value });
+                                  const data = await api.adminUsers();
+                                  setUsers(data.users);
+                                })
+                              }
+                              size="sm"
+                              width="auto"
+                            >
+                              <option value="user">Usuario</option>
+                              <option value="admin">Administrador</option>
+                            </SelectInput>
+                          </td>
+                          <td className="px-5 py-3">
+                            <button
+                              type="button"
+                              disabled={self || busy}
+                              onClick={() =>
+                                run(row.id, async () => {
+                                  await api.patchUser(row.id, { active: !row.active });
+                                  const data = await api.adminUsers();
+                                  setUsers(data.users);
+                                })
+                              }
+                              title={
+                                self
+                                  ? "No puedes desactivar tu propia cuenta"
+                                  : row.active
+                                    ? "Desactivar esta cuenta"
+                                    : "Reactivar esta cuenta"
+                              }
+                              className={`h-9 rounded-lg px-3 text-xs font-black uppercase tracking-wide transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
+                                row.active
+                                  ? "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-950/50 dark:text-green-300 dark:hover:bg-green-900/60"
+                                  : "bg-slate-200 text-slate-700 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                              }`}
+                            >
+                              {busy ? "…" : row.active ? "Activa" : "Desactivada"}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Panel>
+        </div>
       )}
 
       {section === "articles" && (

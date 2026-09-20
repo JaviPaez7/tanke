@@ -120,7 +120,7 @@ export default function Guides() {
             <p className="text-sm text-slate-600 dark:text-slate-300">
               {article.excerpt}
             </p>
-            <p className="text-xs text-slate-500 mt-4">
+            <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
               {article.category?.name ? `${article.category.name} · ` : ""}
               {formatDay(article.createdAt)}
             </p>

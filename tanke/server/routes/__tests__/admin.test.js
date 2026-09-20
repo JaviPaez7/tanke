@@ -1,6 +1,8 @@
 import express from "express";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+const realFetch = globalThis.fetch;
+
 // Un Prisma de mentira, en memoria, con lo justo que usan estas rutas. Las
 // pruebas comprueban permisos, validación y códigos de respuesta con
 // peticiones HTTP reales, sin necesitar PostgreSQL.
@@ -59,7 +61,19 @@ const db = vi.hoisted(() => {
         return state.users.map((u) => ({ ...u, _count: { favorites: 0, alerts: 0, reports: 0 } }));
       },
       async findUnique({ where }) {
-        return state.users.find((u) => u.id === where.id) || null;
+        return state.users.find((u) => (where.id ? u.id === where.id : u.email === where.email)) || null;
+      },
+      async create({ data }) {
+        if (state.users.some((u) => u.email === data.email)) throw uniqueError();
+        const user = {
+          id: id("user"),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...data,
+        };
+        state.users.push(user);
+        const { passwordHash: _passwordHash, ...safe } = user;
+        return { ...safe, _count: { favorites: 0, alerts: 0, reports: 0 } };
       },
       async update({ where, data }) {
         const u = state.users.find((x) => x.id === where.id);
@@ -166,7 +180,7 @@ vi.mock("../../db.js", () => ({
 vi.mock("../../jobs.js", () => ({ runSnapshot: vi.fn() }));
 
 import { mountApi } from "../../api.js";
-import { hashToken } from "../../lib/auth.js";
+import { hashToken, verifyPassword } from "../../lib/auth.js";
 
 let server;
 let base;
@@ -197,6 +211,12 @@ async function call(path, { method = "GET", body, as } = {}) {
 const cuerpo = "Un cuerpo con más de veinte caracteres para pasar la validación.";
 
 beforeAll(async () => {
+  vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+    if (String(input).startsWith("https://api.pwnedpasswords.com/range/")) {
+      return Promise.resolve(new Response("", { status: 200 }));
+    }
+    return realFetch(input, init);
+  });
   const app = express();
   app.use(express.json({ limit: "200kb" }));
   mountApi(app);
@@ -206,7 +226,10 @@ beforeAll(async () => {
   base = `http://127.0.0.1:${server.address().port}`;
 });
 
-afterAll(() => new Promise((resolve) => server.close(resolve)));
+afterAll(async () => {
+  await new Promise((resolve) => server.close(resolve));
+  vi.restoreAllMocks();
+});
 
 beforeEach(() => {
   db.reset();
@@ -233,6 +256,60 @@ describe("permisos del panel", () => {
     expect(r.status).toBe(200);
     expect(r.data.user.active).toBe(false);
     expect((await call("/api/admin/users", { as: "user" })).status).toBe(401);
+  });
+
+  it("solo un administrador puede crear cuentas", async () => {
+    const body = {
+      name: "Nueva cuenta",
+      email: "nueva@example.com",
+      password: "ClaveSegura2026!",
+    };
+    expect((await call("/api/admin/users", { method: "POST", body })).status).toBe(401);
+    expect((await call("/api/admin/users", { as: "user", method: "POST", body })).status).toBe(403);
+  });
+
+  it("crea una cuenta activa con el rol y la verificación elegidos", async () => {
+    const r = await call("/api/admin/users", {
+      as: "admin",
+      method: "POST",
+      body: {
+        name: "Nueva administradora",
+        email: "NUEVA@Example.com",
+        password: "ClaveSegura2026!",
+        role: "admin",
+        emailVerified: true,
+      },
+    });
+
+    expect(r.status).toBe(201);
+    expect(r.data.user).toMatchObject({
+      name: "Nueva administradora",
+      email: "nueva@example.com",
+      role: "admin",
+      active: true,
+      _count: { favorites: 0, alerts: 0, reports: 0 },
+    });
+    expect(r.data.user.emailVerifiedAt).toBeTruthy();
+    expect(r.data.user).not.toHaveProperty("passwordHash");
+    expect(await verifyPassword("ClaveSegura2026!", db.state.users.at(-1).passwordHash)).toBe(true);
+  });
+
+  it("valida los datos y rechaza emails duplicados", async () => {
+    const valid = { name: "Nueva cuenta", email: "nueva@example.com", password: "ClaveSegura2026!" };
+    expect(
+      (await call("/api/admin/users", { as: "admin", method: "POST", body: { ...valid, email: "mal" } })).status,
+    ).toBe(400);
+    expect(
+      (await call("/api/admin/users", { as: "admin", method: "POST", body: { ...valid, password: "corta" } })).status,
+    ).toBe(400);
+    expect(
+      (await call("/api/admin/users", { as: "admin", method: "POST", body: { ...valid, role: "owner" } })).status,
+    ).toBe(400);
+
+    expect((await call("/api/admin/users", { as: "admin", method: "POST", body: valid })).status).toBe(201);
+    const duplicate = await call("/api/admin/users", { as: "admin", method: "POST", body: valid });
+    expect(duplicate.status).toBe(409);
+    expect(duplicate.data.error).toMatch(/Ya existe/);
   });
 });
 

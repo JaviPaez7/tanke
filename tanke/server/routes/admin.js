@@ -1,5 +1,11 @@
 import { prisma, requireDb } from "../db.js";
-import { requireAdmin, wrap } from "../lib/auth.js";
+import {
+  hashPassword,
+  isEmail,
+  passwordProblem,
+  requireAdmin,
+  wrap,
+} from "../lib/auth.js";
 import {
   isUniqueViolation,
   parseArticleInput,
@@ -54,6 +60,72 @@ export function registerAdminRoutes(app) {
         },
       });
       res.json({ users });
+    }),
+  );
+
+  app.post(
+    "/api/admin/users",
+    requireDb,
+    requireAdmin,
+    wrap(async (req, res) => {
+      const email = String(req.body?.email || "")
+        .trim()
+        .toLowerCase();
+      const name = String(req.body?.name || "").trim();
+      const password = String(req.body?.password || "");
+      const role = req.body?.role === "admin" ? "admin" : "user";
+      const emailVerified = req.body?.emailVerified === true;
+
+      if (!isEmail(email)) {
+        return res.status(400).json({ error: "El email no es válido." });
+      }
+      if (name.length < 2 || name.length > 60) {
+        return res
+          .status(400)
+          .json({ error: "El nombre debe tener entre 2 y 60 caracteres." });
+      }
+      if (req.body?.role && !["user", "admin"].includes(req.body.role)) {
+        return res.status(400).json({ error: "El rol no es válido." });
+      }
+      const problem = await passwordProblem(password, { email });
+      if (problem) return res.status(400).json({ error: problem });
+
+      const existing = await prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
+      });
+      if (existing) {
+        return res.status(409).json({ error: "Ya existe una cuenta con ese email." });
+      }
+
+      try {
+        const user = await prisma.user.create({
+          data: {
+            email,
+            name,
+            passwordHash: await hashPassword(password),
+            role,
+            active: true,
+            emailVerifiedAt: emailVerified ? new Date() : null,
+          },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            active: true,
+            emailVerifiedAt: true,
+            createdAt: true,
+            _count: { select: { favorites: true, alerts: true, reports: true } },
+          },
+        });
+        res.status(201).json({ user });
+      } catch (error) {
+        if (isUniqueViolation(error)) {
+          return res.status(409).json({ error: "Ya existe una cuenta con ese email." });
+        }
+        throw error;
+      }
     }),
   );
 
