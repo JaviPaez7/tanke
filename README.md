@@ -66,6 +66,7 @@ npm test
 - Escrituras bajo `/api` protegidas frente a CSRF por `Sec-Fetch-Site`/`Origin` además de la cookie `Lax`
 - Rate limiting con `express-rate-limit`: por IP en auth y buscador, por usuario en las escrituras de la cuenta; topes por cuenta (20 alertas activas, 100 favoritas, 20 avisos al día) publicados en `/api/meta`
 - `/api/gas` solo acepta los 52 códigos de provincia o `all`; la caché del Ministerio está acotada
+- Content Security Policy propia (`server/lib/csp.js`): scripts solo de la app (el del tema va por hash calculado al arrancar), conexiones solo a la API y a OpenFreeMap, sin `object-src` ni `unsafe-eval`. Arranca en modo informe (`Content-Security-Policy-Report-Only`, los avisos salen en el log vía `/api/csp-report`); `CSP_ENFORCE=true` en el `.env` pasa a bloquear sin desplegar. Traefik sigue poniendo HSTS, `nosniff`, `Referrer-Policy` y `frame-ancestors`
 - El contenedor corre con el usuario `node` (no root), sin puerto publicado en el host y con `no-new-privileges`; las imágenes base van fijadas a un parche concreto y Dependabot propone las subidas (npm, Docker, Actions)
 - Riesgos aceptados: el registro responde 409 si el email ya existe (enumeración de cuentas); el limitador vive en memoria y se reinicia con el contenedor
 
