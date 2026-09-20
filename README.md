@@ -64,13 +64,14 @@ npm test
 - Escrituras bajo `/api` protegidas frente a CSRF por `Sec-Fetch-Site`/`Origin` además de la cookie `Lax`
 - Rate limiting con `express-rate-limit`: por IP en auth y buscador, por usuario en las escrituras de la cuenta; topes por cuenta (20 alertas activas, 100 favoritas, 20 avisos al día) publicados en `/api/meta`
 - `/api/gas` solo acepta los 52 códigos de provincia o `all`; la caché del Ministerio está acotada
+- El contenedor corre con el usuario `node` (no root), sin puerto publicado en el host y con `no-new-privileges`; las imágenes base van fijadas a un parche concreto y Dependabot propone las subidas (npm, Docker, Actions)
 - Riesgos aceptados: el registro responde 409 si el email ya existe (enumeración de cuentas); el limitador vive en memoria y se reinicia con el contenedor
 
 ## Despliegue
 
 - **Docker / VPS:** `tanke/Dockerfile` (Express en `:3002`) + `docker-compose.yml` (app + Postgres) → `tanke.javistudio.dev`
-- **CI:** GitHub Actions ejecuta lint y tests; si pasan, construye la imagen GHCR y despliega en el VPS
-- El VPS guarda su copia del compose en `/opt/gas-tracker`, con `POSTGRES_PASSWORD` y `SMTP_URL` en el `.env` de al lado. `ADMIN_EMAIL` y `ADMIN_PASSWORD` solo hacen falta para crear el primer administrador. Los datos viven en el volumen `gas-tracker_tanke_pg`, así que sobreviven a los despliegues
+- **CI:** GitHub Actions ejecuta lint y tests; si pasan, construye la imagen GHCR y despliega en el VPS. En los pull requests hace lo mismo pero sin publicar la imagen ni desplegar
+- El VPS guarda su copia del compose en `/opt/gas-tracker`, con `POSTGRES_PASSWORD` y `SMTP_URL` en el `.env` de al lado. `ADMIN_EMAIL` y `ADMIN_PASSWORD` solo hacen falta para crear el primer administrador: **bórralas del `.env` después del primer arranque** (la app avisa en el log mientras sigan ahí; la contraseña en claro acabaría en cada backup de configuración). Los datos viven en el volumen `gas-tracker_tanke_pg`, así que sobreviven a los despliegues
 - Las migraciones se aplican solas al arrancar el contenedor (`docker-entrypoint.sh`)
 - Healthcheck en `/api/health`; responde 200 mientras el proceso pueda atender
 

@@ -29,10 +29,26 @@ describe("alta inicial del administrador", () => {
   });
 
   it("conserva el administrador existente sin sobrescribirlo", async () => {
+    vi.stubEnv("ADMIN_EMAIL", "");
+    vi.stubEnv("ADMIN_PASSWORD", "");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const admin = { id: "admin-1", email: "owner@example.com", role: "admin" };
     const prisma = prismaWith({ admin });
 
     await expect(ensureAdmin(prisma)).resolves.toBe(admin);
+    expect(prisma.user.create).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("avisa si las credenciales iniciales siguen en el entorno con admin ya creado", async () => {
+    vi.stubEnv("ADMIN_EMAIL", "owner@example.com");
+    vi.stubEnv("ADMIN_PASSWORD", "a-strong-password");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const admin = { id: "admin-1", email: "owner@example.com", role: "admin" };
+    const prisma = prismaWith({ admin });
+
+    await expect(ensureAdmin(prisma)).resolves.toBe(admin);
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/borra ADMIN_EMAIL y ADMIN_PASSWORD/));
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
