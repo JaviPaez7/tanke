@@ -50,7 +50,7 @@ function Done({ children }) {
 }
 
 export function AccountSettings() {
-  const { user, updateUser, clearSession } = useAuth();
+  const { user, pendingEmail, updateUser, clearSession } = useAuth();
 
   const [profile, setProfile] = useState({
     name: user.name,
@@ -76,9 +76,17 @@ export function AccountSettings() {
         email: profile.email,
         password: profile.password,
       });
-      updateUser(data.user);
-      setProfile((p) => ({ ...p, password: "" }));
-      setProfileState({ busy: false, error: "", done: "Datos guardados." });
+      updateUser(data.user, data.pendingEmail || null);
+      // El email no cambia hasta confirmarlo: el campo vuelve al actual y el
+      // aviso de arriba explica que hay un cambio pendiente.
+      setProfile((p) => ({ ...p, email: data.user.email, password: "" }));
+      setProfileState({
+        busy: false,
+        error: "",
+        done: data.pendingEmail
+          ? `Te hemos escrito a ${data.pendingEmail} para confirmar el cambio.`
+          : "Datos guardados.",
+      });
     } catch (err) {
       setProfileState({ busy: false, error: err.message, done: "" });
     }
@@ -128,7 +136,11 @@ export function AccountSettings() {
     <div className="grid gap-5">
       <Panel
         title="Tus datos"
-        description="El nombre es el que ves al entrar. El email es a donde llega el enlace si olvidas la contraseña."
+        description={
+          pendingEmail
+            ? `Cambio de email pendiente: confírmalo desde el correo enviado a ${pendingEmail}. Hasta entonces sigues con ${user.email}.`
+            : "El nombre es el que ves al entrar. El email es a donde llega el enlace si olvidas la contraseña; cambiarlo se confirma desde la dirección nueva."
+        }
       >
         <form onSubmit={saveProfile} className="grid gap-4 md:max-w-md" noValidate>
           {profileState.error && <AlertBox>{profileState.error}</AlertBox>}

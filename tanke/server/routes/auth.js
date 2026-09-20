@@ -16,6 +16,7 @@ import {
   requireAuth,
   updateUserAndInvalidateResets,
   verifyPassword,
+  userKey,
   wrap,
 } from "../lib/auth.js";
 import {
@@ -24,6 +25,12 @@ import {
   resetPasswordEmail,
   sendEmail,
 } from "../lib/mailer.js";
+import {
+  VerificationError,
+  consumeEmailVerification,
+  pendingEmailFor,
+  sendVerificationEmail,
+} from "../lib/verification.js";
 
 const RESET_MINUTES = 30;
 
@@ -62,6 +69,14 @@ export function registerAuthRoutes(app) {
           passwordHash: await hashPassword(password),
         },
       });
+
+      // La cuenta se usa desde ya; el enlace solo hace falta para recibir
+      // correos. Si el envio falla no se bloquea el alta: hay "reenviar".
+      try {
+        await sendVerificationEmail(prisma, user);
+      } catch (error) {
+        console.error("Verification email:", error.message);
+      }
 
       const token = await createSession(user.id);
       res.cookie(SESSION_COOKIE, token, cookieOptions());
@@ -104,9 +119,14 @@ export function registerAuthRoutes(app) {
     }),
   );
 
-  app.get("/api/auth/me", requireDb, (req, res) => {
-    res.json({ user: publicUser(req.user) });
-  });
+  app.get(
+    "/api/auth/me",
+    requireDb,
+    wrap(async (req, res) => {
+      const pendingEmail = req.user ? await pendingEmailFor(prisma, req.user.id) : null;
+      res.json({ user: publicUser(req.user), pendingEmail });
+    }),
+  );
 
   app.patch(
     "/api/auth/me",
@@ -125,9 +145,12 @@ export function registerAuthRoutes(app) {
       // El email solo se toca si de verdad cambia, y siempre con la contraseña
       // delante: es la direccion a la que llega el enlace de recuperacion, asi
       // que dejarla abierta convertiria una sesion robada en un secuestro.
+      // Y no cambia en el acto: se confirma desde la direccion nueva, con
+      // aviso a la antigua. Hasta entonces la cuenta sigue con la de siempre.
       const email = String(req.body?.email || "")
         .trim()
         .toLowerCase();
+      let pendingEmail = null;
       if (email && email !== req.user.email) {
         if (!isEmail(email)) {
           return res.status(400).json({ error: "El email no es válido." });
@@ -141,11 +164,55 @@ export function registerAuthRoutes(app) {
         if (taken) {
           return res.status(409).json({ error: "Ya existe una cuenta con ese email." });
         }
-        data.email = email;
+        pendingEmail = email;
       }
 
       const user = await updateUserAndInvalidateResets(prisma, req.user.id, data);
-      res.json({ user: publicUser(user) });
+      if (pendingEmail) {
+        await sendVerificationEmail(prisma, user, { newEmail: pendingEmail });
+      }
+      res.json({
+        user: publicUser(user),
+        pendingEmail: pendingEmail || (await pendingEmailFor(prisma, user.id)),
+      });
+    }),
+  );
+
+  // Sin sesion a proposito: el enlace puede abrirse desde otro dispositivo y
+  // solo confirma la direccion, no da acceso a la cuenta.
+  app.post(
+    "/api/auth/verify",
+    requireDb,
+    rateLimit({ max: 10 }),
+    wrap(async (req, res) => {
+      try {
+        const { user, changedEmail } = await consumeEmailVerification(prisma, {
+          token: String(req.body?.token || ""),
+        });
+        res.json({ user: publicUser(user), changedEmail });
+      } catch (error) {
+        if (error instanceof VerificationError) {
+          return res.status(error.code === "taken" ? 409 : 400).json({ error: error.message });
+        }
+        throw error;
+      }
+    }),
+  );
+
+  // Reenvia el enlace pendiente: el de la direccion nueva si hay un cambio a
+  // medias, o el de la actual si aun no esta verificada.
+  app.post(
+    "/api/auth/verify/resend",
+    requireDb,
+    requireAuth,
+    rateLimit({ windowMs: 10 * 60_000, max: 3, key: userKey }),
+    wrap(async (req, res) => {
+      const pendingEmail = await pendingEmailFor(prisma, req.user.id);
+      if (!pendingEmail && req.user.emailVerifiedAt) {
+        return res.status(400).json({ error: "Tu email ya está verificado." });
+      }
+      await sendVerificationEmail(prisma, req.user, { newEmail: pendingEmail });
+      res.json({ ok: true, sentTo: pendingEmail || req.user.email });
     }),
   );
 

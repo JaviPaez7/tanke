@@ -5,6 +5,7 @@ import { useAuth } from "../auth/AuthContext";
 import { AccountSettings } from "../components/AccountSettings";
 import { PageShell } from "../components/AppChrome";
 import { PriceHistory } from "../components/PriceHistory";
+import { VerifyEmailNotice } from "../components/VerifyEmailNotice";
 import {
   AlertBox,
   EmptyState,
@@ -220,6 +221,8 @@ export default function Account() {
           </button>
         ))}
       </div>
+
+      <VerifyEmailNotice />
 
       {error && (
         <div className="mb-4">

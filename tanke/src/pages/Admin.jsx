@@ -452,6 +452,14 @@ export default function Admin() {
                           </span>
                           <span className="block text-xs text-slate-500 dark:text-slate-400">
                             {row.email}
+                            {!row.emailVerifiedAt && (
+                              <span
+                                title="Aún no ha confirmado su email: no recibe alertas"
+                                className="ml-2 rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-black uppercase text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
+                              >
+                                Sin verificar
+                              </span>
+                            )}
                           </span>
                         </td>
                         <td className="px-5 py-3 tabular-nums text-slate-600 dark:text-slate-300">

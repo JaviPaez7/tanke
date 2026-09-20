@@ -21,6 +21,8 @@ export const api = {
   checkReset: (token) =>
     request(`/api/auth/reset?token=${encodeURIComponent(token)}`),
   reset: (body) => request("/api/auth/reset", { method: "POST", body }),
+  verifyEmail: (body) => request("/api/auth/verify", { method: "POST", body }),
+  resendVerification: () => request("/api/auth/verify/resend", { method: "POST" }),
   changePassword: (body) =>
     request("/api/auth/password", { method: "POST", body }),
   deleteAccount: (body) =>

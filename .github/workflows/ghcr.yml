@@ -6,6 +6,13 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
+  # En un PR se pasa lint, tests y la construcción de la imagen (sin publicar
+  # ni desplegar): un Dockerfile roto se ve antes de fusionar, no en producción.
+  # Sin filtro de rama base: los PR apilados sobre otra rama también se comprueban.
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   workflow_dispatch:
 
 concurrency:
@@ -65,6 +72,7 @@ jobs:
         run: echo "short_sha=${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -88,7 +96,7 @@ jobs:
         with:
           # El proyecto vive anidado en tanke/.
           context: ./tanke
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -98,7 +106,7 @@ jobs:
   deploy:
     needs: build-push
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     steps:
       - name: Deploy via forced-command SSH
         env:

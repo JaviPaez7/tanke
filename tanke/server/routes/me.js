@@ -273,7 +273,7 @@ export function registerMeRoutes(app) {
         };
       });
 
-      res.json({ alerts: status });
+      res.json({ alerts: status, emailVerified: Boolean(req.user.emailVerifiedAt) });
     }),
   );
 

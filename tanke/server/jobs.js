@@ -98,16 +98,20 @@ export async function runSnapshot(prisma, { force = false } = {}) {
 // nadie: sin esto las dos tablas solo crecen.
 async function purge(prisma) {
   const sessions = await purgeExpiredSessions();
-  const { count: resets } = await prisma.passwordReset.deleteMany({
-    where: {
-      OR: [
-        { expiresAt: { lt: new Date() } },
-        { usedAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
-      ],
-    },
+  const caducados = {
+    OR: [
+      { expiresAt: { lt: new Date() } },
+      { usedAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+    ],
+  };
+  const { count: resets } = await prisma.passwordReset.deleteMany({ where: caducados });
+  const { count: verifications } = await prisma.emailVerification.deleteMany({
+    where: caducados,
   });
-  if (sessions || resets) {
-    console.log(`Tanke: purgadas ${sessions} sesiones y ${resets} enlaces caducados`);
+  if (sessions || resets || verifications) {
+    console.log(
+      `Tanke: purgadas ${sessions} sesiones y ${resets + verifications} enlaces caducados`,
+    );
   }
 }
 

@@ -6,6 +6,8 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  // Direccion nueva a la espera de confirmarse desde su enlace, si la hay.
+  const [pendingEmail, setPendingEmail] = useState(null);
   const [ready, setReady] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState(() => new Set());
 
@@ -29,6 +31,7 @@ export function AuthProvider({ children }) {
       .then((data) => {
         if (cancelled) return;
         setUser(data.user);
+        setPendingEmail(data.pendingEmail || null);
         return data.user ? refreshFavorites(data.user) : null;
       })
       .catch(() => {
@@ -47,6 +50,7 @@ export function AuthProvider({ children }) {
   const value = useMemo(
     () => ({
       user,
+      pendingEmail,
       ready,
       favoriteIds,
       async login(payload) {
@@ -64,6 +68,7 @@ export function AuthProvider({ children }) {
       async logout() {
         await api.logout().catch(() => {});
         setUser(null);
+        setPendingEmail(null);
         setFavoriteIds(new Set());
       },
       // Para cuando el backend ya ha abierto la sesion por su cuenta
@@ -73,14 +78,17 @@ export function AuthProvider({ children }) {
         await refreshFavorites(nextUser);
       },
       // Editar el perfil no cambia la sesion: basta con refrescar los datos
-      // que se pintan en la cabecera.
-      updateUser(nextUser) {
+      // que se pintan en la cabecera. El segundo argumento actualiza el
+      // cambio de email pendiente (null lo borra; undefined lo deja).
+      updateUser(nextUser, nextPending) {
         setUser(nextUser);
+        if (nextPending !== undefined) setPendingEmail(nextPending);
       },
       // La cuenta ya no existe en el servidor; se limpia el estado local sin
       // llamar a /logout, que devolveria 401.
       clearSession() {
         setUser(null);
+        setPendingEmail(null);
         setFavoriteIds(new Set());
       },
       async toggleFavorite(station) {
@@ -108,7 +116,7 @@ export function AuthProvider({ children }) {
         return { saved: true };
       },
     }),
-    [user, ready, favoriteIds, refreshFavorites],
+    [user, pendingEmail, ready, favoriteIds, refreshFavorites],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

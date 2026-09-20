@@ -1,0 +1,34 @@
+# Avisa de dependencias con vulnerabilidades o desactualizadas. Es lo que
+# habria avisado de nodemailer (GHSA-2x7j-588g-ccc2) antes de la auditoria.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /tanke
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      desarrollo:
+        dependency-type: development
+      produccion-menores:
+        dependency-type: production
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directory: /tanke
+    schedule:
+      interval: weekly
+      day: monday
+
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
