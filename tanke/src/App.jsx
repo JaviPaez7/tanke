@@ -22,6 +22,10 @@ import {
 import { ICON_PATHS } from "./iconPaths";
 import { brandFor } from "./data/brands";
 import { AppChrome } from "./components/AppChrome";
+import { PriceTag } from "./components/PriceTag";
+import { useMapMarkerCap } from "./hooks/useMapMarkerCap";
+import { formatCount, formatEur, formatKm, formatPriceValue } from "./lib/format";
+import { calculateDistance } from "./lib/geo";
 import { FavoriteButton } from "./components/FavoriteButton";
 import { ReportButton } from "./components/ReportButton";
 import { StationListSkeleton } from "./components/StationSkeleton";
@@ -45,135 +49,13 @@ const provinceNameById = Object.fromEntries(
   Object.entries(provinceIds).map(([name, id]) => [id, name]),
 );
 
-// FORMATO ESPAÑOL DE NÚMEROS
-// toFixed() siempre devuelve punto decimal ("1.244"), que en español se lee como
-// millares. Los precios de carburante se escriben con coma: 1,244 €/L.
-const priceFormat = new Intl.NumberFormat("es-ES", {
-  minimumFractionDigits: 3,
-  maximumFractionDigits: 3,
-});
-const eurFormat = new Intl.NumberFormat("es-ES", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-const kmFormat = new Intl.NumberFormat("es-ES", {
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-});
-// Miles con punto: "11.021 gasolineras", no "11021".
-const numberFormat = new Intl.NumberFormat("es-ES");
+// Los formateadores en español viven en `lib/format.js`: los comparten el
+// buscador, las tarjetas de precio y el resto de la app.
 
 // Cuántas tarjetas puede pedir el usuario. 50 es el valor histórico y sigue
 // siendo el arranque para quien no toca el selector.
 const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
 const DEFAULT_PAGE_SIZE = 50;
-
-// El mapa es la vista más cara: cada marcador es un divIcon con su HTML (y su
-// <img> de marca) más un Popup que react-leaflet monta aunque nadie lo abra.
-// En móvil, 100 marcadores hacían que el mapa fuese a tirones al arrastrar.
-const MAP_LIMIT_MOBILE = 40;
-const MAP_LIMIT_DESKTOP = 100;
-const MOBILE_QUERY = "(max-width: 768px)";
-
-const formatPrice = (n) => priceFormat.format(n);
-const formatEur = (n) => eurFormat.format(n);
-const formatKm = (n) => kmFormat.format(n);
-
-function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) *
-      Math.cos(lat2 * (Math.PI / 180)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-// Tope de marcadores según el dispositivo. Se escucha el cambio del media
-// query para que girar el móvil o redimensionar no deje el tope de la otra
-// orientación.
-function useMapMarkerCap() {
-  const [isMobile, setIsMobile] = useState(
-    () => window.matchMedia(MOBILE_QUERY).matches,
-  );
-  useEffect(() => {
-    const mq = window.matchMedia(MOBILE_QUERY);
-    const onChange = (e) => setIsMobile(e.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
-  return isMobile ? MAP_LIMIT_MOBILE : MAP_LIMIT_DESKTOP;
-}
-
-const PriceTag = React.memo(({ label, price, highlight, currentAverage }) => {
-  const isAvailable = price && price > 0;
-  // Añadidas clases Dark Mode
-  let colorClass =
-    "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-200";
-  let textClass = "text-slate-700 dark:text-slate-200";
-  let labelClass = "text-slate-600 dark:text-slate-400";
-
-  if (isAvailable && highlight && currentAverage > 0) {
-    if (price < currentAverage - 0.01) {
-      colorClass =
-        "bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 shadow-sm";
-      textClass = "text-green-700 dark:text-green-400";
-      labelClass = "text-green-700 dark:text-green-400";
-    } else if (price > currentAverage + 0.01) {
-      colorClass =
-        "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 shadow-sm";
-      textClass = "text-red-700 dark:text-red-400";
-      labelClass = "text-red-500 dark:text-red-500";
-    } else {
-      colorClass =
-        "bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800 shadow-sm";
-      textClass = "text-orange-700 dark:text-orange-400";
-      labelClass = "text-orange-500 dark:text-orange-500";
-    }
-  } else if (!isAvailable) {
-    // Sin `opacity-40`: a 40 % el texto quedaba a 1,14:1, prácticamente
-    // invisible. Se mantiene la jerarquía con un gris más claro que el del
-    // precio normal (slate-600), pero legible.
-    colorClass =
-      "bg-slate-50 dark:bg-slate-800/50 border-transparent";
-    textClass = "text-slate-500 dark:text-slate-400";
-    labelClass = "text-slate-500 dark:text-slate-400";
-  }
-
-  return (
-    <div
-      className={`flex flex-col justify-center items-center p-2.5 rounded-xl border transition-all duration-300 ${colorClass}`}
-    >
-      <span
-        className={`text-[9px] font-bold uppercase tracking-wider mb-0.5 ${labelClass}`}
-      >
-        {label}
-      </span>
-      <div className="flex items-baseline gap-0.5">
-        {isAvailable ? (
-          <>
-            <span className={`font-black text-lg tabular-nums ${textClass}`}>
-              {formatPrice(price)}
-            </span>
-            <span
-              className={`text-[10px] font-medium ${isAvailable && highlight ? textClass : "text-slate-600 dark:text-slate-400"}`}
-            >
-              €
-            </span>
-          </>
-        ) : (
-          <span className="font-bold text-lg text-slate-500 dark:text-slate-400">
-            --
-          </span>
-        )}
-      </div>
-    </div>
-  );
-});
 
 function readInitialProvince() {
   const params = new URLSearchParams(window.location.search);
@@ -917,13 +799,13 @@ function App() {
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4 px-1">
               <p className="text-xs font-bold text-slate-500 dark:text-slate-400 tabular-nums">
                 Mostrando {Math.min(pageSize, stations.length)} de{" "}
-                {numberFormat.format(stations.length)}{" "}
+                {formatCount(stations.length)}{" "}
                 {stations.length === 1 ? "gasolinera" : "gasolineras"}
               </p>
               <div className="flex items-center gap-3">
                 {currentAverage > 0 && (
                   <p className="text-xs text-slate-600 dark:text-slate-400 tabular-nums">
-                    Media: {formatPrice(currentAverage)}&nbsp;€
+                    Media: {formatPriceValue(currentAverage)}&nbsp;€
                   </p>
                 )}
                 <label className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
@@ -1065,7 +947,7 @@ function App() {
           {stations.length > mapMarkerLimit && (
             <p className="mb-3 px-1 text-xs font-bold text-slate-500 dark:text-slate-400 tabular-nums">
               Mostrando en el mapa las {mapMarkerLimit} más baratas de{" "}
-              {numberFormat.format(stations.length)}. Ajusta el filtro de zona
+              {formatCount(stations.length)}. Ajusta el filtro de zona
               para afinar.
             </p>
           )}
