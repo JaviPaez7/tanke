@@ -18,7 +18,8 @@ export default function ResetPassword() {
 
   // El token se valida al entrar para no dejar que alguien escriba una
   // contraseña nueva y solo entonces descubra que el enlace habia caducado.
-  const [checking, setChecking] = useState(true);
+  // Sin token no hay nada que comprobar: se sabe desde el primer render.
+  const [checking, setChecking] = useState(Boolean(token));
   const [valid, setValid] = useState(false);
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -27,10 +28,7 @@ export default function ResetPassword() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!token) {
-      setChecking(false);
-      return;
-    }
+    if (!token) return;
     let cancelled = false;
     api
       .checkReset(token)
