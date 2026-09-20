@@ -280,11 +280,14 @@
         padding-top: 1.25rem;
         border-top: 1px solid #e2e8f0;
         font-size: 0.8rem;
-        color: #64748b;
+        /* Mismo caso que los h3: #64748b sobre el fondo slate-100 daba
+           4,34:1. Con slate-600 sube a 6,92:1. */
+        color: #45556c;
       }
       html.dark .site-footer__legal {
         border-top-color: #1e293b;
-        color: #726f8b;
+        /* Antes #726f8b: 3,89:1 sobre el fondo oscuro. */
+        color: #94a3b8;
       }
       .site-footer__legal p {
         margin: 0;
