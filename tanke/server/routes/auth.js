@@ -10,6 +10,7 @@ import {
   hashToken,
   isEmail,
   newSessionToken,
+  passwordProblem,
   publicUser,
   rateLimit,
   requireAuth,
@@ -25,13 +26,6 @@ import {
 } from "../lib/mailer.js";
 
 const RESET_MINUTES = 30;
-
-function passwordProblem(password) {
-  if (String(password || "").length < 8) {
-    return "La contraseña debe tener al menos 8 caracteres.";
-  }
-  return null;
-}
 
 export function registerAuthRoutes(app) {
   app.post(
@@ -53,11 +47,8 @@ export function registerAuthRoutes(app) {
           .status(400)
           .json({ error: "El nombre debe tener entre 2 y 60 caracteres." });
       }
-      if (password.length < 8) {
-        return res
-          .status(400)
-          .json({ error: "La contraseña debe tener al menos 8 caracteres." });
-      }
+      const problem = await passwordProblem(password, { email });
+      if (problem) return res.status(400).json({ error: problem });
 
       const exists = await prisma.user.findUnique({ where: { email } });
       if (exists) {
@@ -89,7 +80,8 @@ export function registerAuthRoutes(app) {
       const password = String(req.body?.password || "");
 
       const user = await prisma.user.findUnique({ where: { email } });
-      const ok = user && (await verifyPassword(password, user.passwordHash));
+      // Se compara siempre, exista o no la cuenta: ver verifyPassword.
+      const ok = await verifyPassword(password, user?.passwordHash);
       if (!ok) {
         return res.status(401).json({ error: "Email o contraseña incorrectos." });
       }
@@ -215,6 +207,7 @@ export function registerAuthRoutes(app) {
   app.get(
     "/api/auth/reset",
     requireDb,
+    rateLimit({ max: 20 }),
     wrap(async (req, res) => {
       const token = String(req.query?.token || "");
       const reset = token
@@ -238,9 +231,6 @@ export function registerAuthRoutes(app) {
       const token = String(req.body?.token || "");
       const password = String(req.body?.password || "");
 
-      const problem = passwordProblem(password);
-      if (problem) return res.status(400).json({ error: problem });
-
       const reset = token
         ? await prisma.passwordReset.findUnique({
             where: { tokenHash: hashToken(token) },
@@ -253,6 +243,9 @@ export function registerAuthRoutes(app) {
           error: "El enlace ya no es válido. Pide uno nuevo.",
         });
       }
+
+      const problem = await passwordProblem(password, { email: reset.user.email });
+      if (problem) return res.status(400).json({ error: problem });
 
       const passwordHash = await hashPassword(password);
       const changedUser = await consumePasswordReset(prisma, {
@@ -282,7 +275,7 @@ export function registerAuthRoutes(app) {
       const current = String(req.body?.currentPassword || "");
       const next = String(req.body?.newPassword || "");
 
-      const problem = passwordProblem(next);
+      const problem = await passwordProblem(next, { email: req.user.email });
       if (problem) return res.status(400).json({ error: problem });
       if (!(await verifyPassword(current, req.user.passwordHash))) {
         return res.status(401).json({ error: "La contraseña actual no es correcta." });

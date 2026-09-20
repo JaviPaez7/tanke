@@ -18,7 +18,38 @@ env:
   IMAGE_NAME: javipaez7/tanke
 
 jobs:
+  # Lint y tests antes de construir la imagen: hasta ahora el pipeline solo
+  # compilaba, así que un test roto llegaba igual a producción.
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tanke
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tanke/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Prisma client
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests
+        run: npm test
+
   build-push:
+    needs: check
     runs-on: ubuntu-latest
     permissions:
       contents: read

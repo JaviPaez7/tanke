@@ -1,7 +1,17 @@
 import { prisma, requireDb } from "../db.js";
-import { FUELS, fetchNormalized } from "../lib/stations.js";
-import { requireAuth, wrap } from "../lib/auth.js";
+import {
+  FUELS,
+  InvalidProvinceError,
+  fetchNormalized,
+  isValidStationId,
+} from "../lib/stations.js";
+import { rateLimit, requireAuth, userKey, wrap } from "../lib/auth.js";
 import { cheapestFor } from "../lib/alerts.js";
+import { ACCOUNT_LIMITS } from "../lib/limits.js";
+
+// Las escrituras de la cuenta se limitan por usuario, no por IP: una cuenta
+// no puede inundar la base ni el panel de avisos aunque cambie de red.
+const writeLimit = () => rateLimit({ max: 30, key: userKey });
 
 const REPORT_TYPES = new Set(["horario", "cerrada", "precio", "otro"]);
 const FUEL_IDS = new Set(FUELS.map((f) => f.id));
@@ -53,10 +63,25 @@ export function registerMeRoutes(app) {
     "/api/me/favorites",
     requireDb,
     requireAuth,
+    writeLimit(),
     wrap(async (req, res) => {
       const data = stationPayload(req.body);
       if (!data.stationId) {
         return res.status(400).json({ error: "Falta el identificador de la estación." });
+      }
+
+      // Volver a guardar una que ya está no cuenta contra el tope.
+      const [existing, total] = await Promise.all([
+        prisma.favorite.findUnique({
+          where: { userId_stationId: { userId: req.user.id, stationId: data.stationId } },
+          select: { id: true },
+        }),
+        prisma.favorite.count({ where: { userId: req.user.id } }),
+      ]);
+      if (!existing && total >= ACCOUNT_LIMITS.favorites) {
+        return res.status(400).json({
+          error: `Has llegado al máximo de ${ACCOUNT_LIMITS.favorites} gasolineras guardadas.`,
+        });
       }
 
       const favorite = await prisma.favorite.upsert({
@@ -74,6 +99,7 @@ export function registerMeRoutes(app) {
     "/api/me/favorites/:stationId",
     requireDb,
     requireAuth,
+    writeLimit(),
     wrap(async (req, res) => {
       await prisma.favorite.deleteMany({
         where: { userId: req.user.id, stationId: String(req.params.stationId) },
@@ -99,6 +125,7 @@ export function registerMeRoutes(app) {
     "/api/me/alerts",
     requireDb,
     requireAuth,
+    writeLimit(),
     wrap(async (req, res) => {
       const provinceId = String(req.body?.provinceId || "").trim();
       const province = String(req.body?.province || "").trim();
@@ -106,7 +133,9 @@ export function registerMeRoutes(app) {
       const fuel = String(req.body?.fuel || "").trim();
       const threshold = Number(req.body?.threshold);
 
-      if (!provinceId || !province) {
+      // El id acaba en la URL del Ministerio desde el job de alertas: solo
+      // valen provincias reales.
+      if (!provinceId || !province || provinceId === "all" || !isValidStationId(provinceId)) {
         return res.status(400).json({ error: "Elige una provincia." });
       }
       if (!FUEL_IDS.has(fuel)) {
@@ -116,6 +145,15 @@ export function registerMeRoutes(app) {
         return res
           .status(400)
           .json({ error: "El umbral debe estar entre 0,40 y 3,00 €/L." });
+      }
+
+      const active = await prisma.priceAlert.count({
+        where: { userId: req.user.id, active: true },
+      });
+      if (active >= ACCOUNT_LIMITS.activeAlerts) {
+        return res.status(400).json({
+          error: `Has llegado al máximo de ${ACCOUNT_LIMITS.activeAlerts} alertas activas. Desactiva o borra alguna.`,
+        });
       }
 
       const alert = await prisma.priceAlert.create({
@@ -136,6 +174,7 @@ export function registerMeRoutes(app) {
     "/api/me/alerts/:id",
     requireDb,
     requireAuth,
+    writeLimit(),
     wrap(async (req, res) => {
       const existing = await prisma.priceAlert.findFirst({
         where: { id: req.params.id, userId: req.user.id },
@@ -144,6 +183,16 @@ export function registerMeRoutes(app) {
 
       const data = {};
       if (typeof req.body?.active === "boolean") data.active = req.body.active;
+      if (data.active === true && !existing.active) {
+        const active = await prisma.priceAlert.count({
+          where: { userId: req.user.id, active: true },
+        });
+        if (active >= ACCOUNT_LIMITS.activeAlerts) {
+          return res.status(400).json({
+            error: `Has llegado al máximo de ${ACCOUNT_LIMITS.activeAlerts} alertas activas. Desactiva o borra alguna.`,
+          });
+        }
+      }
       if (req.body?.threshold != null) {
         const threshold = Number(req.body.threshold);
         if (!Number.isFinite(threshold) || threshold < 0.4 || threshold > 3) {
@@ -166,6 +215,7 @@ export function registerMeRoutes(app) {
     "/api/me/alerts/:id",
     requireDb,
     requireAuth,
+    writeLimit(),
     wrap(async (req, res) => {
       await prisma.priceAlert.deleteMany({
         where: { id: req.params.id, userId: req.user.id },
@@ -174,10 +224,13 @@ export function registerMeRoutes(app) {
     }),
   );
 
+  // Cada provincia distinta puede costar una descarga del Ministerio, asi que
+  // esta ruta va mas corta de cupo que el resto.
   app.get(
     "/api/me/alerts/status",
     requireDb,
     requireAuth,
+    rateLimit({ max: 10, key: userKey }),
     wrap(async (req, res) => {
       const alerts = await prisma.priceAlert.findMany({
         where: { userId: req.user.id },
@@ -187,8 +240,14 @@ export function registerMeRoutes(app) {
       const byProvince = new Map();
       for (const alert of alerts) {
         if (!alert.active) continue;
-        if (!byProvince.has(alert.provinceId)) {
+        if (byProvince.has(alert.provinceId)) continue;
+        try {
           byProvince.set(alert.provinceId, await fetchNormalized(alert.provinceId));
+        } catch (error) {
+          // Una alerta antigua con un id que ya no pasa la lista blanca no
+          // debe tumbar la pantalla entera: se muestra sin precio.
+          if (!(error instanceof InvalidProvinceError)) throw error;
+          byProvince.set(alert.provinceId, []);
         }
       }
 
@@ -236,6 +295,7 @@ export function registerMeRoutes(app) {
     "/api/me/reports",
     requireDb,
     requireAuth,
+    writeLimit(),
     wrap(async (req, res) => {
       const stationId = String(req.body?.stationId || "").trim();
       const stationName = String(req.body?.stationName || "Gasolinera").slice(0, 120);
@@ -252,6 +312,18 @@ export function registerMeRoutes(app) {
         return res
           .status(400)
           .json({ error: "El mensaje debe tener entre 8 y 500 caracteres." });
+      }
+
+      const today = await prisma.stationReport.count({
+        where: {
+          userId: req.user.id,
+          createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        },
+      });
+      if (today >= ACCOUNT_LIMITS.reportsPerDay) {
+        return res.status(429).json({
+          error: `Ya has enviado ${ACCOUNT_LIMITS.reportsPerDay} avisos en las últimas 24 horas. Inténtalo mañana.`,
+        });
       }
 
       const report = await prisma.stationReport.create({

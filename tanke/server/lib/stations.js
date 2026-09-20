@@ -7,7 +7,27 @@ const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 import { FUELS } from "../../shared/fuels.js";
+import { provinceIds } from "../../seo/provinces.js";
 export { FUELS };
+
+// El Ministerio ignora lo que va detrás del id ("35?x=1" devuelve Las Palmas
+// igual que "35"), así que sin esta lista cualquier visitante podía crear
+// entradas de caché infinitas con una sola provincia y tirar el contenedor
+// por memoria, además de disparar una descarga al Ministerio por cada
+// variante. Solo valen los 52 códigos INE y "all".
+export const VALID_STATION_IDS = new Set([...Object.values(provinceIds), "all"]);
+
+export function isValidStationId(id) {
+  return VALID_STATION_IDS.has(String(id));
+}
+
+export class InvalidProvinceError extends Error {
+  constructor(id) {
+    super(`Provincia no válida: ${JSON.stringify(String(id))}`);
+    this.name = "InvalidProvinceError";
+    this.id = String(id);
+  }
+}
 
 function num(value) {
   return parseFloat(String(value || "0").replace(",", ".")) || 0;
@@ -67,8 +87,25 @@ const CACHE_TTL_MS = 10 * 60 * 1000;
 // precio de hace unas horas sigue siendo util; una pantalla de error, no.
 const STALE_MAX_MS = 6 * 60 * 60 * 1000;
 
+// Con la lista blanca la caché no pasa de 53 claves; el tope es la red de
+// seguridad por si algún día entra otra vía de acceso.
+const MAX_CACHE_ENTRIES = 64;
+
 const cache = new Map();
 const pending = new Map();
+
+/** Solo para pruebas: cuantas provincias hay en memoria ahora mismo. */
+export function cacheSize() {
+  return cache.size;
+}
+
+function remember(key, entry) {
+  cache.delete(key);
+  cache.set(key, entry);
+  while (cache.size > MAX_CACHE_ENTRIES) {
+    cache.delete(cache.keys().next().value);
+  }
+}
 
 /**
  * Estaciones de una provincia, ya normalizadas, con la caché por delante.
@@ -78,6 +115,8 @@ const pending = new Map();
  */
 export async function fetchStationsCached(id = "35") {
   const key = String(id);
+  if (!isValidStationId(key)) throw new InvalidProvinceError(key);
+
   const hit = cache.get(key);
   const age = hit ? Date.now() - hit.at : Infinity;
 
@@ -95,7 +134,7 @@ export async function fetchStationsCached(id = "35") {
         if (data.length === 0) {
           throw new Error("Respuesta inválida del Ministerio: no contiene estaciones");
         }
-        cache.set(key, { at: Date.now(), data });
+        remember(key, { at: Date.now(), data });
         return data;
       })
       .finally(() => pending.delete(key));
