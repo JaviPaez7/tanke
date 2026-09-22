@@ -1,13 +1,21 @@
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useLayoutEffect, useState } from "react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import { PageShell } from "../components/AppChrome";
 import { AlertBox } from "../components/ui";
 
 export default function GuideArticle() {
   const { slug } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [article, setArticle] = useState(null);
   const [error, setError] = useState("");
+
+  // React Router conserva el scroll al cambiar de ruta. Desde una tarjeta
+  // baja del listado eso deja el título de la guía fuera de la pantalla.
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [slug]);
 
   useEffect(() => {
     let cancelled = false;
@@ -30,7 +38,25 @@ export default function GuideArticle() {
   return (
     <PageShell>
       <p className="mb-4">
-        <Link to="/guias" className="text-sm font-bold text-indigo-600">
+        <Link
+          to="/guias"
+          onClick={(event) => {
+            if (
+              !location.state?.fromGuides ||
+              event.defaultPrevented ||
+              event.button !== 0 ||
+              event.metaKey ||
+              event.ctrlKey ||
+              event.shiftKey ||
+              event.altKey
+            ) {
+              return;
+            }
+            event.preventDefault();
+            navigate(-1);
+          }}
+          className="text-sm font-bold text-indigo-600"
+        >
           ← Todas las guías
         </Link>
       </p>

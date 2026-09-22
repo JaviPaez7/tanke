@@ -76,6 +76,5 @@ recuperación se puede probar en local sin montar nada.
 3. Puerto 3002 + labels Traefik `tanke.javistudio.dev` / red `public-edge`. Sin `ports` en el compose: nada entra sin pasar por Traefik.
 4. `App.jsx` es la fuente de verdad del buscador.
 5. UI en español; prefs de búsqueda en `localStorage` (`tanke_*`).
-6. No commits/push sin confirmación explícita.
-7. El mapa (`components/StationMap.jsx`) se carga con `React.lazy`. No importes
+6. El mapa (`components/StationMap.jsx`) se carga con `React.lazy`. No importes
    Leaflet desde `App.jsx` o vuelve al bundle inicial de todas las rutas.

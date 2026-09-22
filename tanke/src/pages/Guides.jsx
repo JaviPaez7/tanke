@@ -1,9 +1,16 @@
-import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useEffect, useLayoutEffect, useState } from "react";
+import {
+  Link,
+  useLocation,
+  useNavigationType,
+  useSearchParams,
+} from "react-router-dom";
 import { api } from "../api/client";
 import { PageShell } from "../components/AppChrome";
 import { AlertBox, EmptyState } from "../components/ui";
 import { formatDay } from "../lib/format";
+
+let returnPosition = null;
 
 export default function Guides() {
   const [articles, setArticles] = useState([]);
@@ -11,6 +18,8 @@ export default function Guides() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [params, setParams] = useSearchParams();
+  const location = useLocation();
+  const navigationType = useNavigationType();
   const current = params.get("categoria") || "";
 
   useEffect(() => {
@@ -31,6 +40,16 @@ export default function Guides() {
       cancelled = true;
     };
   }, []);
+
+  // Al volver desde una guía, espera a que las tarjetas recuperen su altura
+  // antes de restaurar el scroll; el navegador puede limitarlo durante la carga.
+  useLayoutEffect(() => {
+    if (loading || navigationType !== "POP" || returnPosition?.key !== location.key) {
+      return;
+    }
+    window.scrollTo(0, returnPosition.y);
+    returnPosition = null;
+  }, [loading, location.key, navigationType]);
 
   // El filtro vive en la URL (?categoria=ahorro) para poder compartir el
   // enlace y para que "atrás" deshaga el filtro.
@@ -161,6 +180,20 @@ export default function Guides() {
           <Link
             key={article.id}
             to={`/guias/${article.slug}`}
+            state={{ fromGuides: true }}
+            onClick={(event) => {
+              if (
+                event.defaultPrevented ||
+                event.button !== 0 ||
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey
+              ) {
+                return;
+              }
+              returnPosition = { key: location.key, y: window.scrollY };
+            }}
             className="group flex min-h-64 flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-100/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-indigo-500 dark:hover:shadow-none sm:p-7"
           >
             <div className="mb-5 flex items-center justify-between gap-3">
