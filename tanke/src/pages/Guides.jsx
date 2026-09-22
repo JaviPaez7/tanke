@@ -73,7 +73,7 @@ export default function Guides() {
             to="/"
             className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-black text-slate-900 transition-colors hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
-            Comparar precios <span aria-hidden="true">↗</span>
+            Comparar precios <span aria-hidden="true">→</span>
           </Link>
           {!loading && !error && (
             <p className="mt-5 text-sm font-semibold text-white/80">
