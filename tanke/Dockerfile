@@ -1,6 +1,6 @@
 # Etiqueta fijada al parche: Dependabot (.github/dependabot.yml) propone las
 # subidas; "22-slim" a secas cambiaba de version debajo sin que nadie lo viera.
-FROM node:22.23.2-bookworm-slim AS build
+FROM node:22.23.3-bookworm-slim AS build
 WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma
@@ -9,7 +9,7 @@ COPY . .
 RUN npx prisma generate
 RUN npm run build
 
-FROM node:22.23.2-bookworm-slim
+FROM node:22.23.3-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production
 # La CLI de Prisma no tiene que llamar a casa desde produccion.
