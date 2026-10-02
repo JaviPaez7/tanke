@@ -1,7 +1,7 @@
 import { brandFor } from "../data/brands";
 import { availableFuels, tankSummary } from "../lib/stationPricing";
 import { formatEur, formatKm } from "../lib/format";
-import { ArrowUpIcon, ArrowUpRightIcon, MapPinIcon } from "../icons";
+import { ArrowUpRightIcon, MapPinIcon } from "../icons";
 import { FavoriteButton } from "./FavoriteButton";
 import { PriceTag } from "./PriceTag";
 import { ReportButton } from "./ReportButton";
@@ -87,9 +87,10 @@ export function StationCard({
                 {total > 0 ? formatEur(total) : "--"}&nbsp;€
               </p>
             </div>
+            {/* Sin icono: la flecha verde hacia arriba se leía como "sube el
+                precio", justo lo contrario. El texto ya lo dice todo. */}
             {savings > 0 && (
-              <div className="flex items-center gap-1.5 bg-green-500/15 border border-green-500/30 rounded-full pl-2 pr-3 py-1.5 shrink-0">
-                <ArrowUpIcon className="w-3.5 h-3.5 text-green-400 shrink-0" />
+              <div className="flex items-center gap-1.5 bg-green-500/15 border border-green-500/30 rounded-full px-3 py-1.5 shrink-0">
                 <span className="text-[9px] font-black uppercase tracking-wider text-green-400/80">
                   Ahorras
                 </span>
