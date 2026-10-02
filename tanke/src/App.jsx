@@ -29,10 +29,9 @@ import { calculateDistance } from "./lib/geo";
 import { FavoriteButton } from "./components/FavoriteButton";
 import { ReportButton } from "./components/ReportButton";
 import { StationListSkeleton } from "./components/StationSkeleton";
-import {
-  CARD_FUELS,
-  PRICE_FIELD_BY_SORT,
-} from "./lib/stationPricing";
+import { PRICE_FIELD_BY_SORT } from "./lib/stationPricing";
+import { fuelLabel } from "./data/fuels";
+import { emptyResultsMessage, zoneLabel } from "./lib/emptyResults";
 
 // El mapa se carga solo cuando se pide esa vista: Leaflet y su CSS son el
 // bloque más pesado del proyecto y la mayoría de visitas no salen de la lista.
@@ -245,9 +244,9 @@ function App() {
   // setState React renderizaba dos veces por cada cambio de filtro (y se veía un
   // instante la lista con el orden anterior). Con useMemo se calcula en el mismo
   // render.
-  const { stations, currentAverage } = useMemo(() => {
+  const { stations, currentAverage, matchesBeforeFuel } = useMemo(() => {
     if (allStationsInProvince.length === 0) {
-      return { stations: [], currentAverage: 0 };
+      return { stations: [], currentAverage: 0, matchesBeforeFuel: 0 };
     }
     let result = [...allStationsInProvince];
 
@@ -284,6 +283,10 @@ function App() {
       result = result.filter((s) => s.municipality === selectedMunicipality);
     }
 
+    // Cuántas pasaban los filtros de texto y zona antes del de combustible:
+    // si eran varias y ahora no queda ninguna, el aviso de lista vacía sabe
+    // que el culpable es el combustible.
+    const matchesBeforeFuel = result.length;
     const currentField = PRICE_FIELD_BY_SORT[sortType];
     result = result.filter((station) => station[currentField] > 0);
 
@@ -316,7 +319,7 @@ function App() {
         ? validPrices.reduce((a, b) => a + b, 0) / validPrices.length
         : 0;
 
-    return { stations: result, currentAverage: avg };
+    return { stations: result, currentAverage: avg, matchesBeforeFuel };
   }, [
     selectedMunicipality,
     sortType,
@@ -407,8 +410,17 @@ function App() {
     return station[PRICE_FIELD_BY_SORT[sortType]] || 0;
   };
 
-  const selectedFuelLabel =
-    CARD_FUELS.find((fuel) => fuel.sort === sortType)?.label || "ese combustible";
+  const emptyMessage = emptyResultsMessage({
+    searchTerm,
+    fuelLabel: fuelLabel(PRICE_FIELD_BY_SORT[sortType]),
+    fuelIsCause: matchesBeforeFuel > 0,
+    zone: zoneLabel({
+      userLocation,
+      searchRadius,
+      selectedMunicipality,
+      selectedProvince,
+    }),
+  });
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-100 pb-20 transition-colors duration-500">
@@ -778,10 +790,10 @@ function App() {
             role="status"
           >
             <p className="font-black text-slate-800 dark:text-white">
-              No hay gasolineras con {selectedFuelLabel}
+              {emptyMessage.title}
             </p>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Prueba otra zona o quita los filtros de búsqueda.
+              {emptyMessage.hint}
             </p>
           </div>
         )}
