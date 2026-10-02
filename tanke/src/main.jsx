@@ -1,6 +1,6 @@
-import { StrictMode, Suspense, lazy } from "react";
+import { StrictMode, Suspense, lazy, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import "./index.css";
 import App from "./App.jsx";
 import { AuthProvider } from "./auth/AuthContext.jsx";
@@ -22,6 +22,26 @@ const VerifyEmail = lazy(() => import("./pages/VerifyEmail.jsx"));
 
 registerSW({ immediate: true });
 
+// Entrada suave al cambiar de página. Se valoró la View Transitions API, pero
+// React Router solo la integra (`viewTransition`) en modo data router
+// (createBrowserRouter), y la app usa <BrowserRouter>: migrar todas las rutas
+// y su Suspense a una semana de la defensa no compensaba. Esto es CSS puro:
+// la key fuerza a montar la página nueva y .page-enter la hace aparecer.
+// En la primera carga no se anima: una página que nace a opacidad 0 retrasa
+// el LCP que mide Lighthouse.
+function RouteTransition({ children }) {
+  const { pathname } = useLocation();
+  const [firstPath] = useState(pathname);
+  const [navigated, setNavigated] = useState(false);
+  if (!navigated && pathname !== firstPath) setNavigated(true);
+
+  return (
+    <div key={pathname} className={navigated ? "page-enter" : undefined}>
+      {children}
+    </div>
+  );
+}
+
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <BrowserRouter>
@@ -37,6 +57,7 @@ createRoot(document.getElementById("root")).render(
             />
           }
         >
+          <RouteTransition>
           <Routes>
             <Route path="/" element={<App />} />
             <Route path="/login" element={<Login />} />
@@ -50,6 +71,7 @@ createRoot(document.getElementById("root")).render(
             <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </RouteTransition>
         </Suspense>
       </AuthProvider>
     </BrowserRouter>

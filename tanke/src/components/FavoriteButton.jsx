@@ -7,6 +7,9 @@ export function FavoriteButton({ station }) {
   const { user, favoriteIds, toggleFavorite } = useAuth();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
+  // El latido suena cuando el servidor confirma que se ha guardado, no al
+  // pulsar: así significa "guardada" y no solo "has hecho clic".
+  const [popping, setPopping] = useState(false);
   const saved = favoriteIds.has(String(station.id));
 
   async function onClick(event) {
@@ -18,7 +21,8 @@ export function FavoriteButton({ station }) {
     }
     setBusy(true);
     try {
-      await toggleFavorite(station);
+      const result = await toggleFavorite(station);
+      if (result?.saved) setPopping(true);
     } catch (error) {
       console.error(error);
     } finally {
@@ -48,11 +52,16 @@ export function FavoriteButton({ station }) {
           : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 hover:text-rose-500"
       }`}
     >
-      {saved ? (
-        <HeartFillIcon className="w-4 h-4" />
-      ) : (
-        <HeartIcon className="w-4 h-4" />
-      )}
+      <span
+        className={`flex ${popping ? "heart-pop" : ""}`}
+        onAnimationEnd={() => setPopping(false)}
+      >
+        {saved ? (
+          <HeartFillIcon className="w-4 h-4" />
+        ) : (
+          <HeartIcon className="w-4 h-4" />
+        )}
+      </span>
     </button>
   );
 }

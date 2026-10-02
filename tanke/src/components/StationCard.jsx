@@ -28,7 +28,7 @@ export function StationCard({
   return (
     <div
       key={station.id}
-      className="h-full flex flex-col bg-white dark:bg-slate-900 rounded-4xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-xl dark:hover:shadow-indigo-900/20 transition-all duration-300 group relative"
+      className="card-lift h-full flex flex-col bg-white dark:bg-slate-900 rounded-4xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 group relative"
     >
       <div className="mb-4 flex items-start gap-3">
         {brand && (

@@ -410,6 +410,15 @@ function App() {
     return station[PRICE_FIELD_BY_SORT[sortType]] || 0;
   };
 
+  const resultsKey = [
+    selectedProvince,
+    selectedMunicipality,
+    searchTerm.trim(),
+    sortType,
+    gpsSort,
+    userLocation ? searchRadius : "",
+  ].join("|");
+
   const emptyMessage = emptyResultsMessage({
     searchTerm,
     fuelLabel: fuelLabel(PRICE_FIELD_BY_SORT[sortType]),
@@ -844,7 +853,12 @@ function App() {
               </div>
             </div>
           )}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* La key cambia con cada filtro: React vuelve a montar la lista y
+              la animación de entrada se repite, sin JS de animación. */}
+          <div
+            key={resultsKey}
+            className="results-enter grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+          >
             {stations.slice(0, pageSize).map((station) => (
               <StationCard
                 key={station.id}

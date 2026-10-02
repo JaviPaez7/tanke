@@ -51,6 +51,94 @@ body[data-chrome="app"] .site-footer {
   
 }
 
+/* ── Microinteracciones ────────────────────────────────────────────────
+   Solo transform y opacity (no provocan relayout) y solo si el sistema no
+   pide menos movimiento. Cortas a propósito: Tanke es una herramienta. */
+
+/* La sombra vive en un ::after y lo que se anima es su opacidad: animar
+   box-shadow obliga a repintar en cada fotograma. */
+.card-lift::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 14px 30px -10px rgb(15 23 42 / 0.22);
+  opacity: 0;
+  pointer-events: none;
+}
+.dark .card-lift::after {
+  box-shadow: 0 14px 30px -10px rgb(49 46 129 / 0.45);
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes heart-pop {
+  40% {
+    transform: scale(1.35);
+  }
+  70% {
+    transform: scale(0.92);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .card-lift {
+    transition: transform 200ms ease-out;
+  }
+  .card-lift::after {
+    transition: opacity 200ms ease-out;
+  }
+  /* Solo con ratón: en táctil el hover se queda pegado tras el toque. */
+  @media (hover: hover) {
+    .card-lift:hover {
+      transform: translateY(-3px);
+    }
+    .card-lift:hover::after {
+      opacity: 1;
+    }
+  }
+
+  /* Entrada de los resultados al cambiar un filtro. Escalonado solo en las
+     seis primeras: las de más abajo no se ven al llegar. */
+  /* backwards y no both: al terminar no queda ningún transform puesto, que
+     convertiría a la tarjeta en contenedor de lo que lleve position: fixed. */
+  .results-enter > * {
+    animation: rise-in 240ms ease-out backwards;
+  }
+  .results-enter > :nth-child(2) { animation-delay: 30ms; }
+  .results-enter > :nth-child(3) { animation-delay: 60ms; }
+  .results-enter > :nth-child(4) { animation-delay: 90ms; }
+  .results-enter > :nth-child(5) { animation-delay: 120ms; }
+  .results-enter > :nth-child(n + 6) { animation-delay: 150ms; }
+
+  .heart-pop {
+    animation: heart-pop 380ms ease-out;
+  }
+
+  /* Cambio de página dentro de la app (ver RouteTransition en main.jsx). */
+  .page-enter {
+    animation: rise-in 220ms ease-out backwards;
+  }
+}
+
+/* Red de seguridad para lo que ya había: transiciones de Tailwind, el zoom
+   de Leaflet y el pulso del marcador más barato. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 .marker-cheapest {
   animation: corona-pulse 2s infinite;
   pointer-events: auto !important;/* Para que siempre esté por encima de las demás */
