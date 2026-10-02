@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Circle, MapContainer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -118,14 +118,51 @@ const createPriceIcon = (price, avg, isCheapest, stationName) => {
   });
 };
 
-function RecenterMap({ stations }) {
+const FIT_OPTIONS = { padding: [40, 40], maxZoom: 14 };
+// Espera tras el último cambio antes de volar: al escribir en el buscador cada
+// tecla cambia la lista, y sin pausa el mapa daba un salto por letra.
+const FIT_DELAY_MS = 350;
+
+// Encuadra las gasolineras que se pintan. Antes se centraba en la primera de
+// la lista a zoom 10: al filtrar por un municipio el mapa seguía mostrando
+// media isla y las estaciones quedaban en una esquina, o fuera.
+function FitToStations({ stations, userLocation }) {
   const map = useMap();
+  const appliedKey = useRef(null);
+
   useEffect(() => {
-    if (stations.length > 0) {
-      const first = stations[0];
-      map.setView([first.lat, first.lng], 10);
+    const points = stations
+      .filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lng))
+      .map((s) => [s.lat, s.lng]);
+    // Sin resultados el mapa se queda donde está: volar a ninguna parte
+    // desorienta más que no moverse.
+    if (points.length === 0) return;
+    if (userLocation) points.push([userLocation.lat, userLocation.lng]);
+
+    const bounds = L.latLngBounds(points);
+    const key = bounds.toBBoxString();
+    // Reordenar (más baratas / más cercanas) no cambia el encuadre.
+    if (key === appliedKey.current) return;
+
+    // Al abrir el mapa se encuadra sin animación: venir volando desde la
+    // vista de España entera cada vez que se pulsa "Mapa" cansa.
+    if (appliedKey.current === null) {
+      appliedKey.current = key;
+      map.fitBounds(bounds, FIT_OPTIONS);
+      return;
     }
-  }, [stations, map]);
+
+    const timer = setTimeout(() => {
+      appliedKey.current = key;
+      const reduceMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+      if (reduceMotion) map.fitBounds(bounds, FIT_OPTIONS);
+      else map.flyToBounds(bounds, { ...FIT_OPTIONS, duration: 0.8 });
+    }, FIT_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [stations, userLocation, map]);
+
   return null;
 }
 
@@ -138,7 +175,12 @@ export default function StationMap({
   currentAverage,
   getPriceForStation,
 }) {
-  const visibleStations = stations.slice(0, markerLimit);
+  // Memo para que el encuadre no se recalcule en cada render del buscador
+  // (mover el slider del depósito, por ejemplo, no cambia las estaciones).
+  const visibleStations = useMemo(
+    () => stations.slice(0, markerLimit),
+    [stations, markerLimit],
+  );
   const currentPrices = visibleStations
     .map((s) => getPriceForStation(s))
     .filter((p) => p > 0);
@@ -156,7 +198,10 @@ export default function StationMap({
             el style de un mapa ya montado sin reiniciarlo. */}
         <BaseMap isDark={isDark} />
 
-        <RecenterMap stations={stations} />
+        <FitToStations
+          stations={visibleStations}
+          userLocation={userLocation}
+        />
 
         {userLocation && (
           <>

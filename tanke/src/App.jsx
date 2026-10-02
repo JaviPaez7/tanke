@@ -506,28 +506,35 @@ function App() {
                   </button>
                 </div>
               )}
-              <button
-                onClick={() =>
-                  setViewMode(viewMode === "list" ? "map" : "list")
-                }
-                className={`flex-1 min-w-max lg:flex-none px-4 lg:px-6 whitespace-nowrap rounded-xl font-bold transition-all flex items-center justify-center gap-2 h-12 ${
-                  viewMode === "map"
-                    ? "bg-slate-800 dark:bg-indigo-600 text-white shadow-lg"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-                }`}
+              {/* Selector Lista | Mapa. Antes era un único botón gris "Ver
+                  mapa" que se confundía con el fondo: en la evaluación un
+                  profesor no encontró el mapa. Con las dos opciones a la
+                  vista queda claro que existe y cuál está activa. */}
+              <div
+                role="group"
+                aria-label="Vista de resultados"
+                className="flex flex-1 min-w-max lg:flex-none h-12 p-1 gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
               >
-                {viewMode === "list" ? (
-                  <>
-                    <MapIcon className="w-4 h-4 shrink-0" />
-                    Ver mapa
-                  </>
-                ) : (
-                  <>
-                    <ListIcon className="w-4 h-4 shrink-0" />
-                    Ver lista
-                  </>
-                )}
-              </button>
+                {[
+                  { id: "list", label: "Lista", Icon: ListIcon },
+                  { id: "map", label: "Mapa", Icon: MapIcon },
+                ].map(({ id, label, Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={viewMode === id}
+                    onClick={() => setViewMode(id)}
+                    className={`flex-1 px-4 lg:px-5 whitespace-nowrap rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2 ${
+                      viewMode === id
+                        ? "bg-white dark:bg-indigo-600 text-indigo-700 dark:text-white shadow-sm"
+                        : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-700"
+                    }`}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="w-full lg:w-64 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-xl px-3 py-2.5">
