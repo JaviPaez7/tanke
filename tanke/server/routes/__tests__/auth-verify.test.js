@@ -178,6 +178,30 @@ beforeEach(async () => {
   });
 });
 
+describe("login", () => {
+  it("con campos vacios pide rellenarlos en vez de hablar de credenciales", async () => {
+    for (const body of [{}, { email: "ana@example.com" }, { email: "  ", password: CLAVE_ANA }]) {
+      const res = await call("/api/auth/login", { method: "POST", body });
+      expect(res.status).toBe(400);
+      expect(res.data.error).toBe("Introduce tu e-mail y tu contraseña.");
+    }
+  });
+
+  it("las credenciales malas dan el mismo error exista o no la cuenta", async () => {
+    const wrongPassword = await call("/api/auth/login", {
+      method: "POST",
+      body: { email: "ana@example.com", password: "otra-clave-cualquiera" },
+    });
+    const unknownEmail = await call("/api/auth/login", {
+      method: "POST",
+      body: { email: "nadie@example.com", password: CLAVE_ANA },
+    });
+    expect(wrongPassword.status).toBe(401);
+    expect(unknownEmail.status).toBe(401);
+    expect(unknownEmail.data.error).toBe(wrongPassword.data.error);
+  });
+});
+
 describe("verificacion de email", () => {
   it("el registro abre sesion y manda el enlace de verificacion", async () => {
     const res = await call("/api/auth/register", {

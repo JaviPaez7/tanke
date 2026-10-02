@@ -94,6 +94,14 @@ export function registerAuthRoutes(app) {
         .toLowerCase();
       const password = String(req.body?.password || "");
 
+      // Un campo vacío no es un intento de entrar: decirlo no revela nada
+      // sobre qué cuentas existen, y ahorra el bcrypt de relleno.
+      if (!email || !password) {
+        return res
+          .status(400)
+          .json({ error: "Introduce tu e-mail y tu contraseña." });
+      }
+
       const user = await prisma.user.findUnique({ where: { email } });
       // Se compara siempre, exista o no la cuenta: ver verifyPassword.
       const ok = await verifyPassword(password, user?.passwordHash);

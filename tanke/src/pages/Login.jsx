@@ -23,6 +23,8 @@ function introFor(next) {
   return "Entra para guardar gasolineras y recibir avisos cuando bajen de precio.";
 }
 
+const EMPTY_FIELDS_ERROR = "Introduce tu e-mail y tu contraseña.";
+
 export default function Login() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
@@ -37,6 +39,14 @@ export default function Login() {
 
   async function onSubmit(event) {
     event.preventDefault();
+    // Con el formulario vacío el servidor contestaba "Email o contraseña
+    // incorrectos", que hace pensar en una errata. Lo que falta se dice aquí,
+    // sin gastar una petición; el error de credenciales sigue siendo genérico
+    // para no revelar qué correos tienen cuenta.
+    if (!email.trim() || !password) {
+      setError(EMPTY_FIELDS_ERROR);
+      return;
+    }
     setError("");
     setBusy(true);
     try {
@@ -69,6 +79,9 @@ export default function Login() {
         </p>
       }
     >
+      {/* noValidate: sin él, el globo nativo del navegador se adelanta al
+          mensaje propio y cada navegador lo redacta a su manera. `required` y
+          `type="email"` se quedan por accesibilidad y teclado móvil. */}
       <form onSubmit={onSubmit} className="space-y-5" noValidate>
         {error && <AlertBox>{error}</AlertBox>}
         <Field label="Email">
