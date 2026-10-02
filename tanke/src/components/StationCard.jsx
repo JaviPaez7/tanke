@@ -1,5 +1,5 @@
 import { brandFor } from "../data/brands";
-import { CARD_FUELS, tankSummary } from "../lib/stationPricing";
+import { availableFuels, tankSummary } from "../lib/stationPricing";
 import { formatEur, formatKm } from "../lib/format";
 import { ArrowUpIcon, ArrowUpRightIcon, MapPinIcon } from "../icons";
 import { FavoriteButton } from "./FavoriteButton";
@@ -11,7 +11,8 @@ import { ReportButton } from "./ReportButton";
  *
  * Extraída de App.jsx. Pinta marca, nombre, dirección, municipio, los botones
  * de aviso y favorito, la distancia si el usuario dio su posición, el gasto
- * estimado para su depósito y un recuadro por combustible con PriceTag.
+ * estimado para su depósito y un recuadro con PriceTag por cada combustible
+ * que la estación vende.
  */
 export function StationCard({
   station,
@@ -101,8 +102,12 @@ export function StationCard({
         </div>
       )}
 
+      {/* Con menos casillas la tarjeta encoge, pero la fila no se descuadra:
+          la lista es un grid (estira cada celda a la más alta), la tarjeta es
+          flex en columna y el botón lleva mt-auto, así que siempre queda
+          abajo, alineado con el de sus vecinas. */}
       <div className="grid grid-cols-2 gap-2 mb-6">
-        {CARD_FUELS.map((fuel) => (
+        {availableFuels(station).map((fuel) => (
           <PriceTag
             key={fuel.field}
             label={fuel.label}

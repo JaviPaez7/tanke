@@ -15,6 +15,13 @@ export const CARD_FUELS = [
   { field: "priceCNG", label: "GNC", sort: "cnGAsc" },
 ];
 
+// Solo los combustibles que la estación vende. Antes la tarjeta pintaba las
+// seis casillas y las vacías salían con "--": en una gasolinera sin GLP ni GNC
+// la mitad de la tarjeta era ruido.
+export function availableFuels(station) {
+  return CARD_FUELS.filter((fuel) => station[fuel.field] > 0);
+}
+
 export function tankSummary(price, currentAverage, tankSize) {
   if (!(price > 0) || !(tankSize > 0)) return { total: 0, savings: 0 };
   return {
