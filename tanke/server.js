@@ -20,8 +20,12 @@ import {
   renderProvinceLanding,
   renderFuelLanding,
   renderGuidePage,
+  renderNotFoundPage,
   renderSitemapXml,
   allSitemapPaths,
+  setAppStylesheet,
+  stylesheetFromShell,
+  THEME_SCRIPT,
 } from "./seo/html.js";
 import { mountApi } from "./server/api.js";
 import { bootstrap } from "./server/bootstrap.js";
@@ -46,9 +50,20 @@ app.set("trust proxy", 1);
 // CSP (ver server/lib/csp.js). El hash sale del index.html construido; sin
 // dist (desarrollo con Vite) no hay script inline que permitir.
 const shellPath = path.join(distDir, "index.html");
-const scriptHashes = fs.existsSync(shellPath)
-  ? inlineScriptHashes(fs.readFileSync(shellPath, "utf8"))
-  : [];
+const shellHtml = fs.existsSync(shellPath)
+  ? fs.readFileSync(shellPath, "utf8")
+  : null;
+// Las landings SEO cargan el mismo CSS que la app; su nombre lleva hash y
+// cambia en cada build, así que se lee del index.html construido.
+setAppStylesheet(shellHtml ? stylesheetFromShell(shellHtml) : null);
+if (!shellHtml) {
+  console.warn("Sin dist/: las landings SEO saldrán sin estilos (npm run build).");
+}
+const scriptHashes = [
+  ...(shellHtml ? inlineScriptHashes(shellHtml) : []),
+  // El script de tema de las landings (seo/html.js) es otro texto, otro hash.
+  ...inlineScriptHashes(THEME_SCRIPT),
+];
 app.use(cspMiddleware({ policy: buildPolicy({ scriptHashes }) }));
 
 // Informes del navegador. Fuera de mountApi: no lleva sesion ni cookies y el
@@ -212,12 +227,7 @@ app.use((req, res) => {
 });
 
 function notFoundHtml() {
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>No encontrado — Tanke</title>
-  <meta name="robots" content="noindex"><link rel="canonical" href="${SITE_URL}/">
-  <style>body{font-family:system-ui;background:#0f172a;color:#e2e8f0;display:grid;place-items:center;min-height:100vh;margin:0}
-  a{color:#818cf8}</style></head><body><div style="text-align:center">
-  <h1>Página no encontrada</h1><p><a href="/">Volver a Tanke</a> · <a href="/gasolineras/las-palmas">Gasolineras en Las Palmas</a></p>
-  </div></body></html>`;
+  return renderNotFoundPage();
 }
 
 await bootstrap(prisma);

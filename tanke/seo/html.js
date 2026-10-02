@@ -27,43 +27,114 @@ function formatPrice(n) {
   return `${priceFormat.format(n)} €`;
 }
 
-const baseStyles = `
-  :root { color-scheme: dark; --bg:#0f172a; --card:#1e293b; --text:#e2e8f0; --muted:#94a3b8; --accent:#6366f1; --accent2:#818cf8; --ok:#34d399; --border:#334155; }
-  * { box-sizing: border-box; }
-  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--text); line-height:1.55; }
-  a { color:var(--accent2); text-decoration:none; }
-  a:hover { text-decoration:underline; }
-  .wrap { max-width:920px; margin:0 auto; padding:24px 20px 64px; }
-  header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:28px; }
-  .brand { font-weight:900; font-size:1.5rem; letter-spacing:-0.04em; color:#fff; }
-  .brand span { color:var(--accent); }
-  .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; background:var(--accent); color:#fff !important; font-weight:700; padding:12px 18px; border-radius:12px; text-decoration:none !important; border:0; }
-  .btn:hover { filter:brightness(1.08); text-decoration:none !important; }
-  .btn-ghost { background:transparent; border:1px solid var(--border); color:var(--text) !important; }
-  h1 { font-size:clamp(1.6rem, 4vw, 2.4rem); line-height:1.15; letter-spacing:-0.03em; margin:0 0 12px; color:#fff; }
-  .lead { color:var(--muted); font-size:1.05rem; margin:0 0 24px; max-width:62ch; }
-  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin:20px 0 28px; }
-  .stat { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px 16px; }
-  .stat b { display:block; font-size:1.35rem; color:#fff; }
-  .stat span { color:var(--muted); font-size:0.8rem; text-transform:uppercase; letter-spacing:0.04em; font-weight:700; }
-  table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
-  th, td { padding:12px 14px; text-align:left; border-bottom:1px solid var(--border); font-size:0.95rem; }
-  th { color:var(--muted); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; }
-  tr:last-child td { border-bottom:0; }
-  .price { font-weight:800; color:var(--ok); white-space:nowrap; }
-  .muted { color:var(--muted); }
-  .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:20px; margin:24px 0; }
-  .card h2 { margin:0 0 10px; font-size:1.15rem; color:#fff; }
-  .grid-links { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:8px; margin-top:12px; }
-  .grid-links a { display:block; padding:10px 12px; background:#0f172a; border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:0.9rem; font-weight:600; }
-  .grid-links a:hover { border-color:var(--accent); color:#fff; text-decoration:none; }
-  footer { margin-top:48px; padding-top:24px; border-top:1px solid var(--border); color:var(--muted); font-size:0.85rem; }
-  .cta-row { display:flex; flex-wrap:wrap; gap:12px; margin:20px 0 8px; }
-  .faq details { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin:8px 0; }
-  .faq summary { cursor:pointer; font-weight:700; color:#fff; }
-  .faq p { margin:10px 0 0; color:var(--muted); }
-  .note { font-size:0.85rem; color:var(--muted); margin-top:10px; }
-`;
+// ── Diseño ───────────────────────────────────────────────────────────────
+// Las landings tenían su propia hoja inline (oscura siempre, otra paleta,
+// tablas) y parecían otra web. Ahora cargan el mismo CSS de Tailwind que la
+// app y usan sus mismas clases: cabecera, tarjetas y botones salen iguales, y
+// un cambio de diseño en la app llega aquí solo. Tailwind ve estas clases
+// porque index.css declara `@source "../seo"`.
+
+// Ruta del CSS construido (/assets/index-<hash>.css). La pone el servidor al
+// arrancar, leyéndola del dist/index.html; sin build (desarrollo con Vite) se
+// queda en null y la página sale sin estilos, pero con todo su contenido.
+let appStylesheet = null;
+
+export function setAppStylesheet(href) {
+  appStylesheet = href || null;
+}
+
+/** Saca la hoja principal del index.html que genera Vite. */
+export function stylesheetFromShell(html) {
+  return (
+    /<link\b[^>]*rel="stylesheet"[^>]*href="([^"]+)"/i.exec(html)?.[1] ?? null
+  );
+}
+
+// El mismo criterio que index.html: tema guardado en localStorage, claro por
+// defecto, aplicado antes de pintar para que no haya destello. El servidor
+// suma el hash de este script a la CSP (ver server.js).
+export const THEME_SCRIPT = `<script>(function(){try{var d=localStorage.getItem("tanke_dark")==="true";document.documentElement.classList.add(d?"dark":"light")}catch(e){document.documentElement.classList.add("light")}})();</script>`;
+
+// Piezas con las clases de la app, para no repetirlas en cada página.
+const ui = {
+  section:
+    "bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm p-6 mt-6",
+  h2: "text-lg font-black text-slate-800 dark:text-white mb-3",
+  muted: "text-sm text-slate-600 dark:text-slate-400",
+  link: "font-bold text-indigo-600 dark:text-indigo-400 underline decoration-2 underline-offset-4 decoration-indigo-300 dark:decoration-indigo-700 hover:decoration-indigo-500",
+  btn: "inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-lg shadow-indigo-200 dark:shadow-indigo-900/50 transition-colors",
+  btnGhost:
+    "inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors",
+  chips: "flex flex-wrap gap-2",
+  chip: "whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-700 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 dark:hover:bg-indigo-900/30 dark:hover:text-indigo-300 dark:hover:border-indigo-800 transition-colors",
+  details:
+    "group rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 px-4 py-3 mt-2",
+  summary: "cursor-pointer font-bold text-slate-800 dark:text-white",
+  note: "mt-3 text-xs text-slate-500 dark:text-slate-400",
+};
+
+function chipLinks(items) {
+  return `<div class="${ui.chips}">${items
+    .map(({ href, label }) => `<a class="${ui.chip}" href="${href}">${escapeHtml(label)}</a>`)
+    .join("")}</div>`;
+}
+
+function faqItem(question, answerHtml, open = false) {
+  return `<details class="${ui.details}"${open ? " open" : ""}>
+        <summary class="${ui.summary}">${question}</summary>
+        <p class="mt-2 ${ui.muted}">${answerHtml}</p>
+      </details>`;
+}
+
+// Tarjeta de estación con la anatomía de StationCard: nombre, dirección,
+// municipio en una etiqueta, el precio en verde y "Cómo llegar".
+function stationCard(station, priceKey, fuelLabel, rank) {
+  const directions =
+    station.lat && station.lng
+      ? `<a class="mt-4 flex items-center justify-center w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold transition-colors" href="https://www.google.com/maps/dir/?api=1&amp;destination=${station.lat},${station.lng}" target="_blank" rel="noopener noreferrer">Cómo llegar</a>`
+      : "";
+  return `<li class="card-lift relative h-full flex flex-col bg-white dark:bg-slate-900 rounded-4xl p-5 shadow-sm border border-slate-100 dark:border-slate-800">
+        <div class="flex items-start gap-3">
+          <span class="shrink-0 w-8 h-8 rounded-full bg-slate-900 dark:bg-slate-800 text-white text-xs font-black flex items-center justify-center tabular-nums">${rank}</span>
+          <div class="flex-1 min-w-0">
+            <h3 class="font-black text-slate-800 dark:text-white leading-tight truncate" title="${escapeHtml(station.name)}">${escapeHtml(station.name)}</h3>
+            <p class="text-xs text-slate-600 dark:text-slate-400 font-medium truncate" title="${escapeHtml(station.address)}">${escapeHtml(station.address)}</p>
+            <span class="text-[9px] font-bold uppercase bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-md inline-block mt-2">${escapeHtml(station.municipality)}</span>
+          </div>
+        </div>
+        <div class="mt-4 mb-auto flex items-baseline justify-between rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/30 px-3 py-2">
+          <span class="text-[9px] font-bold uppercase tracking-wider text-green-700 dark:text-green-400">${escapeHtml(fuelLabel)}</span>
+          <span class="font-black text-lg tabular-nums text-green-700 dark:text-green-400">${formatPrice(station[priceKey])}</span>
+        </div>
+        ${directions}
+      </li>`;
+}
+
+function stationList(stations, priceKey, fuelLabel, emptyText) {
+  if (stations.length === 0) return `<p class="${ui.muted}">${emptyText}</p>`;
+  return `<ol class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      ${stations.map((s, i) => stationCard(s, priceKey, fuelLabel, i + 1)).join("")}
+    </ol>`;
+}
+
+function stat(label, value) {
+  return `<div class="bg-slate-900 dark:bg-slate-950/70 dark:ring-1 dark:ring-slate-700/60 rounded-2xl p-4 text-white">
+        <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">${label}</p>
+        <p class="text-2xl font-black tabular-nums">${value}</p>
+      </div>`;
+}
+
+function pageHead({ title, lead, ctas = [] }) {
+  return `<h1 class="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">${title}</h1>
+    <p class="mt-3 max-w-2xl text-base text-slate-600 dark:text-slate-400">${lead}</p>
+    ${
+      ctas.length
+        ? `<div class="mt-6 flex flex-wrap gap-3">${ctas
+            .map(({ href, label, ghost }) => `<a class="${ghost ? ui.btnGhost : ui.btn}" href="${href}">${escapeHtml(label)}</a>`)
+            .join("")}</div>`
+        : ""
+    }`;
+}
 
 function layout({
   title,
@@ -73,6 +144,7 @@ function layout({
   body,
   ogTitle,
   ogDescription,
+  robots = "index,follow,max-image-preview:large",
 }) {
   const ld = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [];
   return `<!doctype html>
@@ -82,7 +154,8 @@ function layout({
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${escapeHtml(title)}</title>
   <meta name="description" content="${escapeHtml(description)}" />
-  <meta name="robots" content="index,follow,max-image-preview:large" />
+  <meta name="robots" content="${robots}" />
+  ${THEME_SCRIPT}
   <link rel="canonical" href="${escapeHtml(canonical)}" />
   <meta property="og:type" content="website" />
   <meta property="og:locale" content="es_ES" />
@@ -102,25 +175,37 @@ function layout({
   <meta name="theme-color" content="#0f172a" />
   <link rel="icon" href="/favicon.ico" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-  <style>${baseStyles}</style>
+  ${appStylesheet ? `<link rel="stylesheet" href="${escapeHtml(appStylesheet)}" />` : ""}
   ${ld.map((obj) => `<script type="application/ld+json">${JSON.stringify(obj)}</script>`).join("\n  ")}
 </head>
-<body>
-  <div class="wrap">
-    <header>
-      <a class="brand" href="/">Tanke<span>.</span></a>
-      <a class="btn btn-ghost" href="/">Abrir app</a>
-    </header>
+<body class="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-100">
+  <!-- Cabecera de las páginas interiores de la app (AppChrome, variante
+       "page"). Sin "Entrar"/"Cuenta": esta página no sabe quién la mira y
+       un enlace de sesión equivocado confunde más que no ponerlo. -->
+  <header class="bg-slate-900 text-white">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+      <a href="/" class="text-xl font-black tracking-tighter shrink-0">Tanke<span class="text-indigo-500">.</span></a>
+      <nav aria-label="Principal" class="flex items-center gap-1">
+        <a href="/guias" class="inline-flex min-h-10 items-center rounded-full px-3.5 text-sm font-bold text-white/85 hover:bg-white/10 hover:text-white transition-colors">Guías</a>
+        <a href="/" class="inline-flex min-h-10 items-center rounded-full px-3.5 text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-500 transition-colors">Abrir buscador</a>
+      </nav>
+    </div>
+  </header>
+  <main class="flex-1 w-full max-w-5xl mx-auto px-4 py-8">
     ${body}
-    <footer>
-      <p>Tanke compara precios oficiales de carburantes del Ministerio para la Transición Ecológica y el Reto Demográfico. Datos orientativos; verifica en estación.</p>
-      <p style="margin-top:8px">
-        <a href="/">App</a> ·
-        <a href="/guia/ahorrar-gasolina">Guía de ahorro</a> ·
-        <a href="https://javistudio.dev">JaviStudio</a>
+  </main>
+  <footer class="border-t border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60 text-sm text-slate-600 dark:text-slate-400">
+    <div class="max-w-5xl mx-auto px-4 py-8">
+      <p class="text-xl font-black tracking-tighter text-slate-900 dark:text-white">Tanke<span class="text-indigo-500">.</span></p>
+      <p class="mt-2 max-w-2xl">Tanke compara precios oficiales de carburantes del Ministerio para la Transición Ecológica y el Reto Demográfico. Datos orientativos; verifica en estación.</p>
+      <p class="mt-3 flex flex-wrap gap-x-4 gap-y-1 font-bold">
+        <a class="hover:text-indigo-600 dark:hover:text-indigo-400" href="/">Buscador</a>
+        <a class="hover:text-indigo-600 dark:hover:text-indigo-400" href="/guias">Guías</a>
+        <a class="hover:text-indigo-600 dark:hover:text-indigo-400" href="/guia/ahorrar-gasolina">Guía de ahorro</a>
+        <a class="hover:text-indigo-600 dark:hover:text-indigo-400" href="https://javistudio.dev">JaviStudio</a>
       </p>
-    </footer>
-  </div>
+    </div>
+  </footer>
 </body>
 </html>`;
 }
@@ -129,28 +214,24 @@ function provinceLinksHtml(exclude) {
   const keys = Object.keys(provinceIds).sort((a, b) =>
     displayName(a).localeCompare(displayName(b), "es"),
   );
-  return keys
-    .filter((k) => k !== exclude)
-    .map(
-      (k) =>
-        `<a href="/gasolineras/${provinceSlug(k)}">${escapeHtml(displayName(k))}</a>`,
-    )
-    .join("");
+  return chipLinks(
+    keys
+      .filter((k) => k !== exclude)
+      .map((k) => ({ href: `/gasolineras/${provinceSlug(k)}`, label: displayName(k) })),
+  );
 }
 
 function featuredLinksHtml() {
-  return featuredProvinces
-    .map(
-      (k) =>
-        `<a href="/gasolineras/${provinceSlug(k)}">${escapeHtml(displayName(k))}</a>`,
-    )
-    .join("");
+  return chipLinks(
+    featuredProvinces.map((k) => ({
+      href: `/gasolineras/${provinceSlug(k)}`,
+      label: displayName(k),
+    })),
+  );
 }
 
 function fuelLinksHtml() {
-  return fuelPages
-    .map((f) => `<a href="/precios/${f.slug}">${escapeHtml(f.label)}</a>`)
-    .join("");
+  return chipLinks(fuelPages.map((f) => ({ href: `/precios/${f.slug}`, label: f.label })));
 }
 
 export function renderProvinceLanding({
@@ -168,87 +249,62 @@ export function renderProvinceLanding({
   const title = `Gasolineras baratas en ${name} | Precios hoy — Tanke`;
   const description = `Compara gasolineras baratas en ${name}: gasolina 95 y diésel en tiempo real. Media G95 ${formatPrice(avg95)}, diésel ${formatPrice(avgDiesel)}. Ahorra con Tanke.`;
 
-  const rows95 = top95
-    .map(
-      (s) => `<tr>
-      <td><strong>${escapeHtml(s.name)}</strong><div class="muted">${escapeHtml(s.municipality)} · ${escapeHtml(s.address)}</div></td>
-      <td class="price">${formatPrice(s.price95)}</td>
-    </tr>`,
-    )
-    .join("");
-
-  const rowsDiesel = topDiesel
-    .map(
-      (s) => `<tr>
-      <td><strong>${escapeHtml(s.name)}</strong><div class="muted">${escapeHtml(s.municipality)} · ${escapeHtml(s.address)}</div></td>
-      <td class="price">${formatPrice(s.priceDiesel)}</td>
-    </tr>`,
-    )
-    .join("");
-
   const isCanarias =
     provinceKey === "Las Palmas" || provinceKey === "Santa Cruz de Tenerife";
 
   const body = `
-    <h1>Gasolineras más baratas en ${escapeHtml(name)}</h1>
-    <p class="lead">
-      Precios actualizados de combustible en ${escapeHtml(name)}${isCanarias ? " (Canarias)" : ""}.
-      Ordena por gasolina 95, 98, diésel o GLP, filtra por municipio y calcula el ahorro según los litros de tu depósito.
-    </p>
-    <div class="cta-row">
-      <a class="btn" href="${appHref}">Ver mapa y lista en vivo</a>
-      <a class="btn btn-ghost" href="/guia/ahorrar-gasolina">Cómo ahorrar en gasolina</a>
-    </div>
-    <div class="stats">
-      <div class="stat"><span>Media G95</span><b>${formatPrice(avg95)}</b></div>
-      <div class="stat"><span>Media diésel</span><b>${formatPrice(avgDiesel)}</b></div>
-      <div class="stat"><span>Estaciones</span><b>${stations.length}</b></div>
-    </div>
-
-    <div class="card">
-      <h2>Top gasolina 95 más barata en ${escapeHtml(name)}</h2>
-      ${
-        rows95
-          ? `<table><thead><tr><th>Estación</th><th>Precio</th></tr></thead><tbody>${rows95}</tbody></table>`
-          : `<p class="muted">No hay precios de gasolina 95 disponibles ahora mismo.</p>`
-      }
-      <p class="note">Fuente: datos abiertos del Ministerio. Actualización aproximada cada pocos minutos.</p>
+    ${pageHead({
+      title: `Gasolineras más baratas en ${escapeHtml(name)}`,
+      lead: `Precios actualizados de combustible en ${escapeHtml(name)}${isCanarias ? " (Canarias)" : ""}.
+      Ordena por gasolina 95, 98, diésel o GLP, filtra por municipio y calcula el ahorro según los litros de tu depósito.`,
+      ctas: [
+        { href: appHref, label: "Ver mapa y lista en vivo" },
+        { href: "/guia/ahorrar-gasolina", label: "Cómo ahorrar en gasolina", ghost: true },
+      ],
+    })}
+    <div class="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
+      ${stat("Media G95", formatPrice(avg95))}
+      ${stat("Media diésel", formatPrice(avgDiesel))}
+      ${stat("Estaciones", stations.length)}
     </div>
 
-    <div class="card">
-      <h2>Top diésel más barato en ${escapeHtml(name)}</h2>
-      ${
-        rowsDiesel
-          ? `<table><thead><tr><th>Estación</th><th>Precio</th></tr></thead><tbody>${rowsDiesel}</tbody></table>`
-          : `<p class="muted">No hay precios de diésel disponibles ahora mismo.</p>`
-      }
-    </div>
+    <section class="mt-10">
+      <h2 class="${ui.h2}">Top gasolina 95 más barata en ${escapeHtml(name)}</h2>
+      ${stationList(top95, "price95", "Gasolina 95", "No hay precios de gasolina 95 disponibles ahora mismo.")}
+      <p class="${ui.note}">Fuente: datos abiertos del Ministerio. Actualización aproximada cada pocos minutos.</p>
+    </section>
 
-    <div class="card faq">
-      <h2>Preguntas frecuentes — ${escapeHtml(name)}</h2>
-      <details open>
-        <summary>¿Cómo encontrar la gasolinera más barata en ${escapeHtml(name)}?</summary>
-        <p>En Tanke elige la provincia ${escapeHtml(name)}, ordena por el combustible que uses y activa “Cerca de mí” si quieres priorizar distancia. También puedes simular el coste de llenar tu depósito.</p>
-      </details>
-      <details>
-        <summary>¿Los precios están actualizados?</summary>
-        <p>Sí: usamos la API pública de carburantes del Gobierno de España. Las estaciones reportan precios con frecuencia; en la app y en esta página verás la foto más reciente disponible.</p>
-      </details>
-      <details>
-        <summary>¿Puedo ver solo mi municipio?</summary>
-        <p>Sí. Abre la <a href="${appHref}">app de Tanke para ${escapeHtml(name)}</a> y filtra por municipio en el selector.</p>
-      </details>
-    </div>
+    <section class="mt-10">
+      <h2 class="${ui.h2}">Top diésel más barato en ${escapeHtml(name)}</h2>
+      ${stationList(topDiesel, "priceDiesel", "Diésel", "No hay precios de diésel disponibles ahora mismo.")}
+    </section>
 
-    <div class="card">
-      <h2>Precios por tipo de combustible</h2>
-      <div class="grid-links">${fuelLinksHtml()}</div>
-    </div>
+    <section class="${ui.section}">
+      <h2 class="${ui.h2}">Preguntas frecuentes — ${escapeHtml(name)}</h2>
+      ${faqItem(
+        `¿Cómo encontrar la gasolinera más barata en ${escapeHtml(name)}?`,
+        `En Tanke elige la provincia ${escapeHtml(name)}, ordena por el combustible que uses y activa “Cerca de mí” si quieres priorizar distancia. También puedes simular el coste de llenar tu depósito.`,
+        true,
+      )}
+      ${faqItem(
+        "¿Los precios están actualizados?",
+        "Sí: usamos la API pública de carburantes del Gobierno de España. Las estaciones reportan precios con frecuencia; en la app y en esta página verás la foto más reciente disponible.",
+      )}
+      ${faqItem(
+        "¿Puedo ver solo mi municipio?",
+        `Sí. Abre la <a class="${ui.link}" href="${appHref}">app de Tanke para ${escapeHtml(name)}</a> y filtra por municipio en el selector.`,
+      )}
+    </section>
 
-    <div class="card">
-      <h2>Otras provincias</h2>
-      <div class="grid-links">${provinceLinksHtml(provinceKey)}</div>
-    </div>
+    <section class="${ui.section}">
+      <h2 class="${ui.h2}">Precios por tipo de combustible</h2>
+      ${fuelLinksHtml()}
+    </section>
+
+    <section class="${ui.section}">
+      <h2 class="${ui.h2}">Otras provincias</h2>
+      ${provinceLinksHtml(provinceKey)}
+    </section>
   `;
 
   const jsonLd = [
@@ -311,25 +367,41 @@ export function renderFuelLanding(fuel) {
   const description = fuel.description;
   const appHref = `/?combustible=${encodeURIComponent(fuel.slug)}`;
 
+  const steps = [
+    "Abre Tanke",
+    "Elige tu provincia",
+    `Ordena por ${escapeHtml(fuel.label)}`,
+    "Activa GPS o filtra municipio",
+    "Simula litros del depósito para ver el ahorro",
+  ];
+
   const body = `
-    <h1>Precio de ${escapeHtml(fuel.label)} en España</h1>
-    <p class="lead">${escapeHtml(fuel.description)}</p>
-    <div class="cta-row">
-      <a class="btn" href="${appHref}">Comparar ${escapeHtml(fuel.label)} en el mapa</a>
-    </div>
-    <div class="card">
-      <h2>Cómo usarlo</h2>
-      <p class="muted">1) Abre Tanke · 2) Elige tu provincia · 3) Ordena por ${escapeHtml(fuel.label)} · 4) Activa GPS o filtra municipio · 5) Simula litros del depósito para ver el ahorro.</p>
-    </div>
-    <div class="card">
-      <h2>Gasolineras baratas por provincia</h2>
-      <div class="grid-links">${featuredLinksHtml()}</div>
-      <div class="grid-links" style="margin-top:12px">${provinceLinksHtml()}</div>
-    </div>
-    <div class="card">
-      <h2>Otros combustibles</h2>
-      <div class="grid-links">${fuelLinksHtml()}</div>
-    </div>
+    ${pageHead({
+      title: `Precio de ${escapeHtml(fuel.label)} en España`,
+      lead: escapeHtml(fuel.description),
+      ctas: [{ href: appHref, label: `Comparar ${fuel.label} en el mapa` }],
+    })}
+    <section class="${ui.section}">
+      <h2 class="${ui.h2}">Cómo usarlo</h2>
+      <ol class="grid gap-2 sm:grid-cols-5">
+        ${steps
+          .map(
+            (step, i) => `<li class="flex sm:flex-col items-center sm:items-start gap-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 p-3 text-sm font-semibold">
+          <span class="shrink-0 w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-black flex items-center justify-center">${i + 1}</span>${step}
+        </li>`,
+          )
+          .join("")}
+      </ol>
+    </section>
+    <section class="${ui.section}">
+      <h2 class="${ui.h2}">Gasolineras baratas por provincia</h2>
+      ${featuredLinksHtml()}
+      <div class="mt-4">${provinceLinksHtml()}</div>
+    </section>
+    <section class="${ui.section}">
+      <h2 class="${ui.h2}">Otros combustibles</h2>
+      ${fuelLinksHtml()}
+    </section>
   `;
 
   const jsonLd = {
@@ -350,45 +422,55 @@ export function renderGuidePage() {
   const description =
     "Consejos prácticos para pagar menos por la gasolina y el diésel: comparar estaciones, elegir horario, calcular el depósito y usar precios oficiales.";
 
-  const body = `
-    <h1>Cómo ahorrar en gasolina (Canarias y península)</h1>
-    <p class="lead">Guía rápida para gastar menos en cada depósito usando precios reales de gasolineras y hábitos sencillos al volante.</p>
-    <div class="cta-row">
-      <a class="btn" href="/?provincia=las-palmas">Ver precios en Las Palmas</a>
-      <a class="btn btn-ghost" href="/?provincia=tenerife">Ver precios en Tenerife</a>
-    </div>
+  const tips = [
+    [
+      "Compara antes de llenar",
+      "Entre estaciones del mismo municipio puede haber varios céntimos de diferencia. En un depósito de 50 L, 0,05 €/L son 2,50 € de ahorro. Usa Tanke para ordenar por gasolina 95, 98, diésel o GLP.",
+    ],
+    [
+      "No mires solo el precio: mira la distancia",
+      "Si la estación más barata está muy lejos, el trayecto puede comerse el ahorro. Activa “Cerca de mí”, ajusta el radio en km y ordena por precio o distancia.",
+    ],
+    [
+      "Simula tu depósito",
+      "En la app puedes indicar los litros y ver el coste total y el ahorro frente a la media de tu zona. Así decides con números, no a ojo.",
+    ],
+    [
+      "Canarias: revisa tu isla",
+      `Los precios en <a class="${ui.link}" href="/gasolineras/las-palmas">Las Palmas (Gran Canaria y resto de la provincia)</a> y <a class="${ui.link}" href="/gasolineras/santa-cruz-de-tenerife">Santa Cruz de Tenerife</a> cambian a menudo. Merece la pena mirar el mapa el mismo día que vas a cargar.`,
+    ],
+  ];
 
-    <div class="card">
-      <h2>1. Compara antes de llenar</h2>
-      <p class="muted">Entre estaciones del mismo municipio puede haber varios céntimos de diferencia. En un depósito de 50 L, 0,05 €/L son 2,50 € de ahorro. Usa Tanke para ordenar por gasolina 95, 98, diésel o GLP.</p>
-    </div>
-    <div class="card">
-      <h2>2. No mires solo el precio: mira la distancia</h2>
-      <p class="muted">Si la estación más barata está muy lejos, el trayecto puede comerse el ahorro. Activa “Cerca de mí”, ajusta el radio en km y ordena por precio o distancia.</p>
-    </div>
-    <div class="card">
-      <h2>3. Simula tu depósito</h2>
-      <p class="muted">En la app puedes indicar los litros y ver el coste total y el ahorro frente a la media de tu zona. Así decides con números, no a ojo.</p>
-    </div>
-    <div class="card">
-      <h2>4. Canarias: revisa tu isla</h2>
-      <p class="muted">Los precios en <a href="/gasolineras/las-palmas">Las Palmas (Gran Canaria y resto de la provincia)</a> y <a href="/gasolineras/santa-cruz-de-tenerife">Santa Cruz de Tenerife</a> cambian a menudo. Merece la pena mirar el mapa el mismo día que vas a cargar.</p>
-    </div>
-    <div class="card faq">
-      <h2>FAQ</h2>
-      <details open>
-        <summary>¿Tanke es gratis?</summary>
-        <p>Sí. Es una herramienta gratuita para comparar precios de carburantes en España.</p>
-      </details>
-      <details>
-        <summary>¿De dónde salen los datos?</summary>
-        <p>De la API pública de estaciones de servicio del Ministerio para la Transición Ecológica y el Reto Demográfico.</p>
-      </details>
-    </div>
-    <div class="card">
-      <h2>Empieza por tu provincia</h2>
-      <div class="grid-links">${featuredLinksHtml()}</div>
-    </div>
+  const body = `
+    ${pageHead({
+      title: "Cómo ahorrar en gasolina (Canarias y península)",
+      lead: "Guía rápida para gastar menos en cada depósito usando precios reales de gasolineras y hábitos sencillos al volante.",
+      ctas: [
+        { href: "/?provincia=las-palmas", label: "Ver precios en Las Palmas" },
+        { href: "/?provincia=tenerife", label: "Ver precios en Tenerife", ghost: true },
+      ],
+    })}
+
+    <ol class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+      ${tips
+        .map(
+          ([title, text], i) => `<li class="card-lift relative bg-white dark:bg-slate-900 rounded-4xl p-6 shadow-sm border border-slate-100 dark:border-slate-800">
+        <span class="w-8 h-8 rounded-full bg-indigo-600 text-white text-sm font-black flex items-center justify-center">${i + 1}</span>
+        <h2 class="mt-3 text-lg font-black text-slate-800 dark:text-white">${title}</h2>
+        <p class="mt-1 ${ui.muted}">${text}</p>
+      </li>`,
+        )
+        .join("")}
+    </ol>
+    <section class="${ui.section}">
+      <h2 class="${ui.h2}">FAQ</h2>
+      ${faqItem("¿Tanke es gratis?", "Sí. Es una herramienta gratuita para comparar precios de carburantes en España.", true)}
+      ${faqItem("¿De dónde salen los datos?", "De la API pública de estaciones de servicio del Ministerio para la Transición Ecológica y el Reto Demográfico.")}
+    </section>
+    <section class="${ui.section}">
+      <h2 class="${ui.h2}">Empieza por tu provincia</h2>
+      ${featuredLinksHtml()}
+    </section>
   `;
 
   const jsonLd = [
@@ -427,6 +509,27 @@ export function renderGuidePage() {
   ];
 
   return layout({ title, description, canonical, jsonLd, body });
+}
+
+export function renderNotFoundPage() {
+  const body = `
+    <div class="py-12 text-center">
+      <p class="text-6xl font-black tracking-tighter text-indigo-600 dark:text-indigo-400">404</p>
+      <h1 class="mt-2 text-3xl font-black tracking-tight text-slate-900 dark:text-white">Página no encontrada</h1>
+      <p class="mt-3 ${ui.muted}">La dirección no existe o ha cambiado.</p>
+      <div class="mt-6 flex flex-wrap justify-center gap-3">
+        <a class="${ui.btn}" href="/">Volver a Tanke</a>
+        <a class="${ui.btnGhost}" href="/gasolineras/las-palmas">Gasolineras en Las Palmas</a>
+      </div>
+    </div>
+  `;
+  return layout({
+    title: "No encontrado — Tanke",
+    description: "Esta página de Tanke no existe.",
+    canonical: `${SITE_URL}/`,
+    body,
+    robots: "noindex",
+  });
 }
 
 export function renderSitemapXml(paths) {

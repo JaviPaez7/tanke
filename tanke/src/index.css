@@ -1,4 +1,7 @@
 @import "tailwindcss";
+/* Las landings SEO (seo/html.js) se pintan en el servidor con las clases de
+   la app y cargan esta misma hoja: Tailwind tiene que verlas al construir. */
+@source "../seo";
 @custom-variant dark (&:is(.dark *));
 
 ::selection {

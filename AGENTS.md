@@ -35,6 +35,13 @@ leerlo. `seo/provinces.js` hace lo mismo con las 52 provincias.
 Si algo se escribe dos veces (combustibles, provincias, el normalizador del
 JSON del Ministerio), acaba divergiendo. Ya pasó con el GNC.
 
+Las landings SEO (`/gasolineras/:provincia`, `/precios/:combustible`,
+`/guia/ahorrar-gasolina` y el 404) se pintan en `seo/html.js` con clases de
+Tailwind y cargan el CSS construido de la app: `server.js` lee su nombre del
+`dist/index.html` al arrancar y suma a la CSP el hash de su script de tema.
+Sin `npm run build` salen sin estilos. `src/index.css` declara
+`@source "../seo"` para que Tailwind genere esas clases.
+
 ## Proxy (crítico)
 
 El browser **solo** llama `/api/gas?id=<provincia|all>` (`src/services/gasStations.js`).
