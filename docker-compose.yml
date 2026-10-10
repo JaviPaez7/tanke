@@ -1,3 +1,5 @@
+name: tanke
+
 services:
   db:
     image: postgres:16.15-alpine
@@ -70,6 +72,7 @@ services:
 
 volumes:
   tanke_pg:
+    name: tanke_pg
 
 networks:
   public-edge:

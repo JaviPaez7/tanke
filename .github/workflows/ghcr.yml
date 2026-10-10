@@ -125,10 +125,10 @@ jobs:
           printf '%s\n' "$VPS_HOST_KEY" > ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
           # Fuerza el script remoto; el comando es "app sha" (determinista).
-          # La app se llama gas-tracker porque vive en /opt/gas-tracker.
+          # La app y el directorio remoto comparten el nombre tanke.
           ssh -i ~/.ssh/id_ed25519 \
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
             -o UserKnownHostsFile=~/.ssh/known_hosts \
             "dockerdeploy@${VPS_HOST}" \
-            "gas-tracker ${SHORT_SHA}"
+            "tanke ${SHORT_SHA}"

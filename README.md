@@ -74,7 +74,7 @@ npm test
 
 - **Docker / VPS:** `tanke/Dockerfile` (Express en `:3002`) + `docker-compose.yml` (app + Postgres) → `tanke.javistudio.dev`
 - **CI:** GitHub Actions ejecuta lint y tests; si pasan, construye la imagen GHCR y despliega en el VPS. En los pull requests hace lo mismo pero sin publicar la imagen ni desplegar
-- El VPS guarda su copia del compose en `/opt/gas-tracker`, con `POSTGRES_PASSWORD` y `SMTP_URL` en el `.env` de al lado. `ADMIN_EMAIL` y `ADMIN_PASSWORD` solo hacen falta para crear el primer administrador: **bórralas del `.env` después del primer arranque** (la app avisa en el log mientras sigan ahí; la contraseña en claro acabaría en cada backup de configuración). Los datos viven en el volumen `gas-tracker_tanke_pg`, así que sobreviven a los despliegues
+- El VPS guarda su copia del compose en `/opt/tanke`, con `POSTGRES_PASSWORD` y `SMTP_URL` en el `.env` de al lado. `ADMIN_EMAIL` y `ADMIN_PASSWORD` solo hacen falta para crear el primer administrador: **bórralas del `.env` después del primer arranque** (la app avisa en el log mientras sigan ahí; la contraseña en claro acabaría en cada backup de configuración). El proyecto Compose se llama `tanke` y los datos viven en el volumen `tanke_pg`, cuyo nombre explícito no depende de la carpeta del despliegue
 - Las migraciones se aplican solas al arrancar el contenedor (`docker-entrypoint.sh`)
 - Healthcheck en `/api/health`; responde 200 mientras el proceso pueda atender
 

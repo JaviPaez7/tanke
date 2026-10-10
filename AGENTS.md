@@ -1,4 +1,4 @@
-# Tanke (gas-tracker)
+# Tanke
 
 Buscador de gasolineras baratas en España (datos abiertos del Ministerio para la Transición Ecológica). Prod: [tanke.javistudio.dev](https://tanke.javistudio.dev).
 
@@ -9,7 +9,7 @@ El código de la app vive en **`tanke/`**. En la raíz: compose, CI y README.
 - React 19 · Vite 7 · Tailwind 4 · Leaflet · PWA · React Router
 - Prod: Express (`tanke/server.js`) — estático `dist/` + API (`/api/*`) en :3002
 - PostgreSQL · Prisma · sesiones por cookie httpOnly · Nodemailer (Resend SMTP)
-- Docker · Traefik · GHCR `ghcr.io/javipaez7/tanke` · `/opt/gas-tracker`
+- Docker · Traefik · GHCR `ghcr.io/javipaez7/tanke` · `/opt/tanke`
 
 ## Comandos
 
