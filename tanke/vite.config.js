@@ -1,10 +1,21 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+import { createElement as h } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { SiteFooter, THEME_SCRIPT } from "./shared/pageChrome.js";
 
 export default defineConfig({
   plugins: [
     react(),
+    {
+      name: "tanke-page-chrome",
+      transformIndexHtml(html) {
+        return html
+          .replace("<!-- tanke:theme -->", THEME_SCRIPT)
+          .replace("<!-- tanke:footer -->", renderToStaticMarkup(h(SiteFooter)));
+      },
+    },
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: [

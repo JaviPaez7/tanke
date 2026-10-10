@@ -9,6 +9,7 @@ import { api } from "../api/client";
 import { PageShell } from "../components/AppChrome";
 import { AlertBox, EmptyState } from "../components/ui";
 import { formatDay } from "../lib/format";
+import { PageHero } from "../../shared/pageChrome.js";
 
 let returnPosition = null;
 
@@ -74,36 +75,18 @@ export default function Guides() {
 
   return (
     <PageShell>
-      <section className="relative mb-8 overflow-hidden rounded-[2rem] bg-slate-900 px-6 py-9 text-white shadow-xl shadow-slate-200/70 dark:shadow-none sm:px-10 sm:py-12">
-        <div className="pointer-events-none absolute -right-16 -top-20 h-72 w-72 rounded-full bg-indigo-500/25 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 right-1/3 h-64 w-64 rounded-full bg-cyan-400/10 blur-3xl" />
-        <div className="relative max-w-2xl">
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.22em] text-indigo-300">
-            Guías de Tanke
-          </p>
-          <h1 className="text-3xl font-black tracking-tight sm:text-5xl">
-            Reposta con mejores decisiones.
-          </h1>
-          <p className="mt-4 max-w-xl text-sm leading-7 text-slate-300 sm:text-base">
-            Aprende a comparar precios, calcular el coste real de un depósito y
-            elegir el combustible adecuado para tu coche.
-          </p>
-          <Link
-            to="/"
-            className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-black text-slate-900 transition-colors hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-          >
-            Comparar precios <span aria-hidden="true">→</span>
-          </Link>
-          {!loading && !error && (
-            <p className="mt-5 text-sm font-semibold text-white/80">
-              {articles.length} {articles.length === 1 ? "guía práctica" : "guías prácticas"}
-            </p>
-          )}
-        </div>
-      </section>
+      <PageHero
+        linkComponent={Link}
+        eyebrow="Guías de Tanke"
+        title="Reposta con mejores decisiones."
+        lead="Aprende a comparar precios, calcular el coste real de un depósito y elegir el combustible adecuado para tu coche."
+        breadcrumbs={[{ href: "/", label: "Inicio" }, { label: "Guías" }]}
+        actions={[{ href: "/", label: "Comparar precios →" }]}
+        metadata={!loading && !error && <span>{articles.length} {articles.length === 1 ? "guía práctica" : "guías prácticas"}</span>}
+      />
 
       {usable.length > 0 && (
-        <section className="mb-9" aria-labelledby="guide-topics">
+        <section className="mb-9 mt-8" aria-labelledby="guide-topics">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.16em] text-indigo-600 dark:text-indigo-400">

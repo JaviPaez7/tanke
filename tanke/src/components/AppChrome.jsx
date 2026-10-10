@@ -1,4 +1,5 @@
 import { Link, NavLink } from "react-router-dom";
+import { Brand, InteriorHeader } from "../../shared/pageChrome.js";
 import { useAuth } from "../auth/AuthContext";
 import { useHiddenSiteFooter } from "../hooks/useHiddenSiteFooter";
 import { useTheme } from "../hooks/useTheme";
@@ -82,20 +83,11 @@ export function AppChrome({
   }
 
   return (
-    <header className="bg-slate-900 text-white">
-      {/* Con las etiquetas visibles, logo + enlaces + interruptor no caben en
-          un móvil. En vez de dejar que un icono salte solo a la segunda línea,
-          la navegación baja entera y ocupa su propia fila hasta `sm`. */}
-      <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <Link to="/" className="text-xl font-black tracking-tighter shrink-0">
-          Tanke<span className="text-indigo-500">.</span>
-        </Link>
-        <div className="flex basis-full items-center justify-end gap-1 sm:basis-auto sm:gap-2">
-          {nav}
-          <DarkToggle isDark={isDark} setIsDark={setIsDark} />
-        </div>
-      </div>
-    </header>
+    <InteriorHeader
+      brandLink={<Brand linkComponent={Link} />}
+      navigation={nav}
+      themeControl={<DarkToggle isDark={isDark} setIsDark={setIsDark} />}
+    />
   );
 }
 
@@ -104,7 +96,7 @@ export function PageShell({ title, children, loading, bare = false }) {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-100">
       <AppChrome />
-      <main className="max-w-5xl mx-auto px-4 py-8">
+      <main className="page-container">
         {loading ? (
           // Un texto suelto no dice cuánto falta ni qué va a aparecer; el
           // esqueleto reserva el sitio del título y de los paneles.

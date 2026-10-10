@@ -42,6 +42,11 @@ Tailwind y cargan el CSS construido de la app: `server.js` lee su nombre del
 Sin `npm run build` salen sin estilos. `src/index.css` declara
 `@source "../seo"` para que Tailwind genere esas clases.
 
+`shared/pageChrome.js` comparte cabecera, hero, pie y selector de tema entre
+React y las landings. Sus estilos viven en `src/pageStyles.css`. Vite inserta
+el pie y el script de tema en los marcadores de `index.html`; el servidor usa
+las mismas piezas, sin depender de `src/` en producción.
+
 ## Proxy (crítico)
 
 El browser **solo** llama `/api/gas?id=<provincia|all>` (`src/services/gasStations.js`).
