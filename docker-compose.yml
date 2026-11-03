@@ -41,6 +41,10 @@ services:
       EMAIL_FROM: ${EMAIL_FROM:-Tanke <no-reply@mail.javistudio.dev>}
       # CSP en modo informe hasta que valga true (ver server/lib/csp.js).
       CSP_ENFORCE: ${CSP_ENFORCE:-false}
+      # Asistente de busqueda (Claude). Sin clave no aparece en el buscador.
+      # Es de pago: el tope de gasto real se pone en la Console de Anthropic.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ASSISTANT_DAILY_LIMIT: ${ASSISTANT_DAILY_LIMIT:-1000}
     # Sin esto Docker no sabia si la app seguia viva: un proceso Node colgado
     # se quedaba en "Up" y Traefik le seguia mandando trafico. La imagen es
     # node-slim, asi que la sonda va con el propio node en vez de curl.

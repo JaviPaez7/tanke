@@ -4,6 +4,7 @@ import {
 } from "../../seo/provinces.js";
 import { FUELS } from "../lib/stations.js";
 import { ACCOUNT_LIMITS } from "../lib/limits.js";
+import { isAssistantEnabled } from "../lib/assistant.js";
 import { prisma } from "../db.js";
 
 export function registerMetaRoutes(app) {
@@ -34,6 +35,8 @@ export function registerMetaRoutes(app) {
       provinces,
       fuels: FUELS,
       limits: ACCOUNT_LIMITS,
+      // Sin clave de Anthropic el buscador no enseña el asistente.
+      assistant: isAssistantEnabled(),
       reportTypes: [
         { id: "horario", label: "Horario incorrecto" },
         { id: "cerrada", label: "Estación cerrada" },

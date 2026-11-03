@@ -33,6 +33,8 @@ export const api = {
   logout: () => request("/api/auth/logout", { method: "POST" }),
   updateMe: (body) => request("/api/auth/me", { method: "PATCH", body }),
   meta: () => request("/api/meta"),
+  assistantSearch: (body) =>
+    request("/api/assistant/search", { method: "POST", body }),
   locate: (lat, lng) => request(`/api/gas/locate?lat=${lat}&lng=${lng}`),
   favorites: () => request("/api/me/favorites"),
   addFavorite: (body) => request("/api/me/favorites", { method: "POST", body }),

@@ -21,6 +21,7 @@ import {
 } from "./icons";
 import { ICON_PATHS } from "./iconPaths";
 import { AppChrome } from "./components/AppChrome";
+import { AssistantSearch } from "./components/AssistantSearch";
 import { PriceTag } from "./components/PriceTag";
 import { StationCard } from "./components/StationCard";
 import { useMapMarkerCap } from "./hooks/useMapMarkerCap";
@@ -338,7 +339,9 @@ function App() {
     localStorage.setItem("tanke_page_size", String(value));
   };
 
-  const handleNearMe = () => {
+  // `onLocated` deja que el asistente aplique lo suyo cuando el GPS ya ha
+  // fijado la zona: antes se perdía porque aquí se vacía la búsqueda.
+  const handleNearMe = (onLocated) => {
     setLoading(true);
     setGeoError(null);
     setLocationNotice("");
@@ -387,6 +390,7 @@ function App() {
           );
         }
 
+        if (typeof onLocated === "function") onLocated();
         setLoading(false);
       },
       (error) => {
@@ -404,6 +408,43 @@ function App() {
         setLoading(false);
       },
     );
+  };
+
+  // Filtros que devuelve el asistente. `null` = no tocar ese filtro. Nombrar
+  // una zona o una gasolinera empieza una búsqueda nueva; pedir solo otro
+  // combustible conserva la zona y el texto que ya había.
+  const applyAssistantFilters = async (filters) => {
+    if (filters.fuel) {
+      setSortType(filters.fuel);
+      localStorage.setItem("tanke_sort", filters.fuel);
+    }
+    if (filters.sortBy) setGpsSort(filters.sortBy);
+
+    if (filters.nearMe) {
+      if (filters.radiusKm) {
+        setSearchRadius(filters.radiusKm);
+        localStorage.setItem("tanke_radius", filters.radiusKm);
+      }
+      handleNearMe(() => setSearchTerm(filters.search || ""));
+      return;
+    }
+
+    const zoneGiven = Boolean(filters.province || filters.municipality);
+    if (zoneGiven && userLocation) {
+      setUserLocation(null);
+      setLocationNotice("");
+    }
+    if (filters.province && filters.province !== selectedProvince) {
+      await applyProvince(filters.province);
+    } else if (zoneGiven) {
+      setSelectedMunicipality("");
+      localStorage.removeItem("tanke_municipality");
+    }
+    if (filters.municipality) {
+      setSelectedMunicipality(filters.municipality);
+      localStorage.setItem("tanke_municipality", filters.municipality);
+    }
+    if (zoneGiven || filters.search) setSearchTerm(filters.search || "");
   };
 
   const getPriceForStation = (station) => {
@@ -481,6 +522,11 @@ function App() {
 
       <main className="max-w-7xl mx-auto px-4 -mt-8 relative z-20">
         <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-white/50 dark:border-slate-800 mb-8 p-4 md:p-6 transition-colors duration-300">
+          <AssistantSearch
+            currentProvince={selectedProvince}
+            onApply={applyAssistantFilters}
+          />
+
           {/* BARRA DE CONTROLES PRINCIPAL */}
           {/* Los tres controles solo caben en una fila desde lg: en tablet se
               apilan, que es como se ven bien a 768. */}
@@ -490,7 +536,7 @@ function App() {
             <div className="flex flex-wrap gap-2 w-full lg:w-auto">
               {!userLocation ? (
                 <button
-                  onClick={handleNearMe}
+                  onClick={() => handleNearMe()}
                   className="flex-1 min-w-max lg:flex-none px-4 lg:px-6 whitespace-nowrap bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 dark:shadow-indigo-900/50 transition-all flex items-center justify-center gap-2 h-12"
                 >
                   <MapPinIcon className="w-4 h-4 shrink-0" />
