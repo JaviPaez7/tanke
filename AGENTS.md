@@ -55,6 +55,21 @@ No llames la API del Ministerio desde el cliente.
 JSON crudo). Caché de 10 min compartida con las landings SEO; si el Ministerio
 falla se sirve la última copia buena hasta 6 h con `stale: true`.
 
+## Asistente de búsqueda
+
+`POST /api/assistant/search` (`server/lib/assistant.js`) traduce una frase
+("diésel barato en Arona") a los filtros del buscador con Claude Haiku y
+salida estructurada. Claude no ve precios: solo rellena provincia, municipio,
+combustible, texto y "cerca de mí", y el servidor descarta lo que no sea un
+valor válido. El municipio se cuadra con el nombre del Ministerio
+("Palmas de Gran Canaria (Las)").
+
+- Solo existe con `ANTHROPIC_API_KEY`; `/api/meta` devuelve `assistant` y sin
+  clave la UI no lo pinta
+- Es de pago y el buscador es público: 10 peticiones/min por IP, caché de 1 h
+  por frase y `ASSISTANT_DAILY_LIMIT` (1000 por defecto) al día
+- Los ids de combustible duplican `PRICE_FIELD_BY_SORT`; un test los compara
+
 ## Cuentas
 
 - Registro/login: `/registro`, `/login`. El registro abre sesión y manda un enlace de verificación (`/verificar?token=…`, 24 h, un solo uso); `server/lib/verification.js`

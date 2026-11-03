@@ -3,6 +3,7 @@ import { attachUser } from "./lib/auth.js";
 import { rejectCrossSite } from "./lib/csrf.js";
 import { registerAdminRoutes } from "./routes/admin.js";
 import { registerArticleRoutes } from "./routes/articles.js";
+import { registerAssistantRoutes } from "./routes/assistant.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerGasRoute } from "./routes/gas.js";
 import { registerMeRoutes } from "./routes/me.js";
@@ -18,6 +19,7 @@ export function mountApi(app) {
   registerAuthRoutes(app);
   registerMeRoutes(app);
   registerArticleRoutes(app);
+  registerAssistantRoutes(app);
   registerAdminRoutes(app);
 
   app.use("/api", (err, _req, res, next) => {

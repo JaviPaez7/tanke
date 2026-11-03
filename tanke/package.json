@@ -26,6 +26,7 @@
     "deepmerge-ts": "^8.0.2"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.4.0",
     "@maplibre/maplibre-gl-leaflet": "^0.1.4",
     "@prisma/client": "6.19.3",
     "bcryptjs": "^3.0.2",
