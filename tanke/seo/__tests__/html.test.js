@@ -85,6 +85,26 @@ describe("landings SEO con el diseño de la app", () => {
     expect(renderNotFoundPage()).toContain('<meta name="robots" content="noindex" />');
   });
 
+  it("ofrece navegación, selector de tema y un único título en cada landing", () => {
+    for (const html of [province(), renderFuelLanding(fuelPages[0]), renderGuidePage(), renderNotFoundPage()]) {
+      expect(html).toContain('aria-label="Principal"');
+      expect(html).toContain('role="switch"');
+      expect(html).toContain('data-theme-toggle=""');
+      expect(html.match(/<h1\b/g)).toHaveLength(1);
+      expect(html.match(/<footer\b/g)).toHaveLength(1);
+      expect(html).toContain('href="/guias"');
+    }
+  });
+
+  it("escapa texto también al renderizar el hero y los datos estructurados", () => {
+    const fuel = { slug: "prueba", label: '<script>alert("x")</script>', description: 'Prueba & comparación' };
+    const html = renderFuelLanding(fuel);
+    expect(html).toContain('&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;');
+    const json = /<script type="application\/ld\+json">(.*?)<\/script>/.exec(html)[1];
+    expect(json).not.toContain("<script>");
+    expect(JSON.parse(json).name).toContain(fuel.label);
+  });
+
   it("el script de tema es el único inline ejecutable: su hash basta en la CSP", () => {
     expect(inlineScriptHashes(province())).toEqual(inlineScriptHashes(THEME_SCRIPT));
   });

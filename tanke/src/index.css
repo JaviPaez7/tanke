@@ -1,8 +1,13 @@
 @import "tailwindcss";
+@import "./pageStyles.css";
 /* Las landings SEO (seo/html.js) se pintan en el servidor con las clases de
    la app y cargan esta misma hoja: Tailwind tiene que verlas al construir. */
 @source "../seo";
+@source "../shared";
 @custom-variant dark (&:is(.dark *));
+
+html { color-scheme: light; }
+html.dark { color-scheme: dark; }
 
 ::selection {
   background: #4f46e5;

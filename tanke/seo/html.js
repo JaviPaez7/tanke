@@ -1,3 +1,6 @@
+import { createElement as h } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { InteriorHeader, PageHero, SiteFooter, ThemeSwitch, THEME_SCRIPT } from "../shared/pageChrome.js";
 import {
   SITE_URL,
   displayName,
@@ -50,21 +53,16 @@ export function stylesheetFromShell(html) {
   );
 }
 
-// El mismo criterio que index.html: tema guardado en localStorage, claro por
-// defecto, aplicado antes de pintar para que no haya destello. El servidor
-// suma el hash de este script a la CSP (ver server.js).
-export const THEME_SCRIPT = `<script>(function(){try{var d=localStorage.getItem("tanke_dark")==="true";document.documentElement.classList.add(d?"dark":"light")}catch(e){document.documentElement.classList.add("light")}})();</script>`;
+// El shell de React y las páginas del servidor comparten el script de tema.
+// server.js suma su hash a la CSP para permitirlo también en modo estricto.
+export { THEME_SCRIPT };
 
 // Piezas con las clases de la app, para no repetirlas en cada página.
 const ui = {
-  section:
-    "bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm p-6 mt-6",
+  section: "page-panel mt-6",
   h2: "text-lg font-black text-slate-800 dark:text-white mb-3",
   muted: "text-sm text-slate-600 dark:text-slate-400",
   link: "font-bold text-indigo-600 dark:text-indigo-400 underline decoration-2 underline-offset-4 decoration-indigo-300 dark:decoration-indigo-700 hover:decoration-indigo-500",
-  btn: "inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-lg shadow-indigo-200 dark:shadow-indigo-900/50 transition-colors",
-  btnGhost:
-    "inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors",
   chips: "flex flex-wrap gap-2",
   chip: "whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-700 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 dark:hover:bg-indigo-900/30 dark:hover:text-indigo-300 dark:hover:border-indigo-800 transition-colors",
   details:
@@ -124,16 +122,8 @@ function stat(label, value) {
       </div>`;
 }
 
-function pageHead({ title, lead, ctas = [] }) {
-  return `<h1 class="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">${title}</h1>
-    <p class="mt-3 max-w-2xl text-base text-slate-600 dark:text-slate-400">${lead}</p>
-    ${
-      ctas.length
-        ? `<div class="mt-6 flex flex-wrap gap-3">${ctas
-            .map(({ href, label, ghost }) => `<a class="${ghost ? ui.btnGhost : ui.btn}" href="${href}">${escapeHtml(label)}</a>`)
-            .join("")}</div>`
-        : ""
-    }`;
+function pageHead({ ctas = [], ...props }) {
+  return renderToStaticMarkup(h(PageHero, { ...props, actions: ctas }));
 }
 
 function layout({
@@ -176,36 +166,19 @@ function layout({
   <link rel="icon" href="/favicon.ico" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   ${appStylesheet ? `<link rel="stylesheet" href="${escapeHtml(appStylesheet)}" />` : ""}
-  ${ld.map((obj) => `<script type="application/ld+json">${JSON.stringify(obj)}</script>`).join("\n  ")}
+  ${ld.map((obj) => `<script type="application/ld+json">${JSON.stringify(obj).replace(/</g, "\\u003c")}</script>`).join("\n  ")}
 </head>
 <body class="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-100">
-  <!-- Cabecera de las páginas interiores de la app (AppChrome, variante
-       "page"). Sin "Entrar"/"Cuenta": esta página no sabe quién la mira y
-       un enlace de sesión equivocado confunde más que no ponerlo. -->
-  <header class="bg-slate-900 text-white">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-      <a href="/" class="text-xl font-black tracking-tighter shrink-0">Tanke<span class="text-indigo-500">.</span></a>
-      <nav aria-label="Principal" class="flex items-center gap-1">
-        <a href="/guias" class="inline-flex min-h-10 items-center rounded-full px-3.5 text-sm font-bold text-white/85 hover:bg-white/10 hover:text-white transition-colors">Guías</a>
-        <a href="/" class="inline-flex min-h-10 items-center rounded-full px-3.5 text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-500 transition-colors">Abrir buscador</a>
-      </nav>
-    </div>
-  </header>
-  <main class="flex-1 w-full max-w-5xl mx-auto px-4 py-8">
+  ${renderToStaticMarkup(h(InteriorHeader, {
+    navigation: h("nav", { "aria-label": "Principal", className: "flex items-center gap-1" },
+      h("a", { href: "/guias", className: "inline-flex min-h-10 items-center rounded-full px-3.5 text-sm font-bold text-white/85 hover:bg-white/10 hover:text-white transition-colors" }, "Guías"),
+      h("a", { href: "/", className: "inline-flex min-h-10 items-center rounded-full px-3.5 text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-500 transition-colors" }, "Buscador")),
+    themeControl: h(ThemeSwitch, { serverControlled: true }),
+  }))}
+  <main class="page-container flex-1">
     ${body}
   </main>
-  <footer class="border-t border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60 text-sm text-slate-600 dark:text-slate-400">
-    <div class="max-w-5xl mx-auto px-4 py-8">
-      <p class="text-xl font-black tracking-tighter text-slate-900 dark:text-white">Tanke<span class="text-indigo-500">.</span></p>
-      <p class="mt-2 max-w-2xl">Tanke compara precios oficiales de carburantes del Ministerio para la Transición Ecológica y el Reto Demográfico. Datos orientativos; verifica en estación.</p>
-      <p class="mt-3 flex flex-wrap gap-x-4 gap-y-1 font-bold">
-        <a class="hover:text-indigo-600 dark:hover:text-indigo-400" href="/">Buscador</a>
-        <a class="hover:text-indigo-600 dark:hover:text-indigo-400" href="/guias">Guías</a>
-        <a class="hover:text-indigo-600 dark:hover:text-indigo-400" href="/guia/ahorrar-gasolina">Guía de ahorro</a>
-        <a class="hover:text-indigo-600 dark:hover:text-indigo-400" href="https://javistudio.dev">JaviStudio</a>
-      </p>
-    </div>
-  </footer>
+  ${renderToStaticMarkup(h(SiteFooter))}
 </body>
 </html>`;
 }
@@ -254,8 +227,10 @@ export function renderProvinceLanding({
 
   const body = `
     ${pageHead({
-      title: `Gasolineras más baratas en ${escapeHtml(name)}`,
-      lead: `Precios actualizados de combustible en ${escapeHtml(name)}${isCanarias ? " (Canarias)" : ""}.
+      eyebrow: "Precios por provincia",
+      breadcrumbs: [{ href: "/", label: "Inicio" }, { label: name }],
+      title: `Gasolineras más baratas en ${name}`,
+      lead: `Precios actualizados de combustible en ${name}${isCanarias ? " (Canarias)" : ""}.
       Ordena por gasolina 95, 98, diésel o GLP, filtra por municipio y calcula el ahorro según los litros de tu depósito.`,
       ctas: [
         { href: appHref, label: "Ver mapa y lista en vivo" },
@@ -377,8 +352,10 @@ export function renderFuelLanding(fuel) {
 
   const body = `
     ${pageHead({
-      title: `Precio de ${escapeHtml(fuel.label)} en España`,
-      lead: escapeHtml(fuel.description),
+      eyebrow: "Precios de combustible",
+      breadcrumbs: [{ href: "/", label: "Inicio" }, { label: fuel.label }],
+      title: `Precio de ${fuel.label} en España`,
+      lead: fuel.description,
       ctas: [{ href: appHref, label: `Comparar ${fuel.label} en el mapa` }],
     })}
     <section class="${ui.section}">
@@ -444,6 +421,8 @@ export function renderGuidePage() {
   const body = `
     ${pageHead({
       title: "Cómo ahorrar en gasolina (Canarias y península)",
+      eyebrow: "Guías de Tanke",
+      breadcrumbs: [{ href: "/", label: "Inicio" }, { href: "/guias", label: "Guías" }, { label: "Ahorrar gasolina" }],
       lead: "Guía rápida para gastar menos en cada depósito usando precios reales de gasolineras y hábitos sencillos al volante.",
       ctas: [
         { href: "/?provincia=las-palmas", label: "Ver precios en Las Palmas" },
@@ -463,7 +442,7 @@ export function renderGuidePage() {
         .join("")}
     </ol>
     <section class="${ui.section}">
-      <h2 class="${ui.h2}">FAQ</h2>
+      <h2 class="${ui.h2}">Preguntas frecuentes</h2>
       ${faqItem("¿Tanke es gratis?", "Sí. Es una herramienta gratuita para comparar precios de carburantes en España.", true)}
       ${faqItem("¿De dónde salen los datos?", "De la API pública de estaciones de servicio del Ministerio para la Transición Ecológica y el Reto Demográfico.")}
     </section>
@@ -512,17 +491,12 @@ export function renderGuidePage() {
 }
 
 export function renderNotFoundPage() {
-  const body = `
-    <div class="py-12 text-center">
-      <p class="text-6xl font-black tracking-tighter text-indigo-600 dark:text-indigo-400">404</p>
-      <h1 class="mt-2 text-3xl font-black tracking-tight text-slate-900 dark:text-white">Página no encontrada</h1>
-      <p class="mt-3 ${ui.muted}">La dirección no existe o ha cambiado.</p>
-      <div class="mt-6 flex flex-wrap justify-center gap-3">
-        <a class="${ui.btn}" href="/">Volver a Tanke</a>
-        <a class="${ui.btnGhost}" href="/gasolineras/las-palmas">Gasolineras en Las Palmas</a>
-      </div>
-    </div>
-  `;
+  const body = pageHead({
+    eyebrow: "Error 404",
+    title: "Página no encontrada",
+    lead: "La dirección no existe o ha cambiado. Puedes seguir comparando precios o explorar nuestras guías.",
+    ctas: [{ href: "/", label: "Volver a Tanke" }, { href: "/guias", label: "Ver las guías", ghost: true }],
+  });
   return layout({
     title: "No encontrado — Tanke",
     description: "Esta página de Tanke no existe.",
